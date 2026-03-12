@@ -88,7 +88,8 @@ func (m HostMatcher) Match(host string) bool {
 		return true
 	}
 	for _, suffix := range m.suffixes {
-		if strings.HasSuffix(host, suffix) {
+		trimmed := strings.TrimPrefix(suffix, ".")
+		if host == trimmed || strings.HasSuffix(host, suffix) {
 			return true
 		}
 	}
