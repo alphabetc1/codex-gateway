@@ -1,0 +1,18 @@
+services:
+  claude-gateway:
+    build: .
+    container_name: claude-gateway
+    restart: unless-stopped
+    env_file:
+      - .env
+    network_mode: host
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./config:/app/config:ro
+      - ./certs:/app/certs:ro

@@ -1,0 +1,8 @@
+# Replace this file with a real bcrypt-backed users file before starting the service.
+# Format: one username:bcrypt_hash entry per line.
+#
+# Generate a hash:
+# docker run --rm caddy:2-alpine caddy hash-password --plaintext 'change-me'
+#
+# Example:
+# alice:$2a$12$replace.with.a.real.bcrypt.hash
