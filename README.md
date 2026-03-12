@@ -30,7 +30,7 @@
 ## 适用场景
 
 - 在 VPS 上部署一个受控代理，让本地 Claude Code / Codex 通过 `HTTP_PROXY` / `HTTPS_PROXY` 出网
-- 限定只允许访问少量模型域名，例如 `.anthropic.com`、`.openai.com`
+- 限定只允许访问少量模型域名，例如 `.anthropic.com`、`.openai.com`、`.chatgpt.com`
 - 需要基本审计能力，但不想引入重型网关
 
 ## 核心特性
@@ -105,6 +105,7 @@ docker compose up -d --build
 ```bash
 export HTTP_PROXY=http://alice:change-me@127.0.0.1:8080
 export HTTPS_PROXY=http://alice:change-me@127.0.0.1:8080
+export ALL_PROXY=http://alice:change-me@127.0.0.1:8080
 ```
 
 如果代理运行在远端 VPS，推荐先打隧道：
@@ -114,6 +115,8 @@ ssh -N -L 8080:127.0.0.1:8080 user@your-vps
 ```
 
 然后本地 CLI 再走 `127.0.0.1:8080`。
+
+默认示例 allowlist 已包含 `.chatgpt.com`，便于 Codex 这类访问 `chatgpt.com` 根域和子域的客户端直接使用。
 
 不要把 `ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL` 之类的厂商 API 地址直接改成这个服务，除非客户端本身明确支持把它当作普通 HTTP 代理使用。
 
@@ -167,4 +170,3 @@ internal/netutil
 internal/proxy
 internal/admin
 ```
-

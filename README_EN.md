@@ -30,7 +30,7 @@ What it does not do:
 ## Good Fit For
 
 - Running a controlled egress proxy on a VPS for Claude Code / Codex via `HTTP_PROXY` and `HTTPS_PROXY`
-- Restricting outbound access to a small set of model domains such as `.anthropic.com` and `.openai.com`
+- Restricting outbound access to a small set of model domains such as `.anthropic.com`, `.openai.com`, and `.chatgpt.com`
 - Adding basic auditing and access control without introducing a heavy gateway stack
 
 ## Features
@@ -105,6 +105,7 @@ Use standard explicit proxy settings:
 ```bash
 export HTTP_PROXY=http://alice:change-me@127.0.0.1:8080
 export HTTPS_PROXY=http://alice:change-me@127.0.0.1:8080
+export ALL_PROXY=http://alice:change-me@127.0.0.1:8080
 ```
 
 For a remote VPS, tunnel it first:
@@ -114,6 +115,8 @@ ssh -N -L 8080:127.0.0.1:8080 user@your-vps
 ```
 
 Then point local CLI tools at `127.0.0.1:8080`.
+
+The default sample allowlist includes `.chatgpt.com` so Codex-style clients that access the `chatgpt.com` apex or its subdomains work out of the box.
 
 Do not replace `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`, or similar vendor API endpoints with this service unless the client is explicitly using it as a normal HTTP proxy.
 
