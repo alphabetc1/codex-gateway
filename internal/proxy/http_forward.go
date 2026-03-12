@@ -8,6 +8,10 @@ import (
 )
 
 func (h *Handler) handleForwardHTTP(w http.ResponseWriter, r *http.Request, state *requestState) {
+	if r.URL != nil {
+		state.audit.Destination = r.URL.Host
+	}
+
 	resolution, proxyErr := h.policy.ResolveHTTP(r.Context(), r)
 	if proxyErr != nil {
 		h.writeProxyError(w, state, proxyErr)

@@ -189,6 +189,26 @@ func TestCONNECTAuthFailureReturns407(t *testing.T) {
 	}
 }
 
+func TestDeniedCONNECTAuditIncludesDestination(t *testing.T) {
+	server, _, auditLogs := startProxyServer(t, proxyTestOptions{
+		resolver: staticResolver{
+			testHostName: {netip.MustParseAddr("127.0.0.1")},
+		},
+		allowedHosts: map[string]struct{}{testHostName: {}},
+		allowedPorts: []uint16{443},
+		allowPrivate: true,
+		maxConns:     2,
+	})
+
+	response := doRawHTTP(t, proxyAddress(server), "CONNECT denied.example:443 HTTP/1.1\r\nHost: denied.example:443\r\nProxy-Authorization: "+proxyAuthorizationHeader()+"\r\n\r\n")
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusForbidden)
+	}
+	if !strings.Contains(auditLogs.String(), "\"destination\":\"denied.example:443\"") {
+		t.Fatalf("audit log missing denied destination: %s", auditLogs.String())
+	}
+}
+
 func TestCONNECTAuthorityFormTunnel(t *testing.T) {
 	addr, port := startTCPServer(t, func(conn net.Conn) {
 		defer conn.Close()
@@ -334,13 +354,13 @@ func startProxyServer(t *testing.T, options proxyTestOptions) (*httptest.Server,
 			Resolver:     options.resolver,
 			AllowPrivate: options.allowPrivate,
 		},
-		SourceIPs:                    netutil.NewPrefixMatcher(options.sourcePrefixes),
-		Metrics:                      NewMetrics(),
-		UpstreamDialTimeout:          2 * time.Second,
-		UpstreamTLSHandshakeTimeout:  2 * time.Second,
+		SourceIPs:                     netutil.NewPrefixMatcher(options.sourcePrefixes),
+		Metrics:                       NewMetrics(),
+		UpstreamDialTimeout:           2 * time.Second,
+		UpstreamTLSHandshakeTimeout:   2 * time.Second,
 		UpstreamResponseHeaderTimeout: 2 * time.Second,
-		IdleTimeout:                  2 * time.Second,
-		TunnelIdleTimeout:            2 * time.Second,
+		IdleTimeout:                   2 * time.Second,
+		TunnelIdleTimeout:             2 * time.Second,
 	})
 
 	server := httptest.NewServer(handler)

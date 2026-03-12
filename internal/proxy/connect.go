@@ -17,6 +17,7 @@ func (h *Handler) handleConnect(w http.ResponseWriter, r *http.Request, state *r
 	if authority == "" {
 		authority = r.RequestURI
 	}
+	state.audit.Destination = authority
 
 	resolution, proxyErr := h.policy.ResolveCONNECT(r.Context(), authority)
 	if proxyErr != nil {
