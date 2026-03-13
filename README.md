@@ -2,32 +2,28 @@
 
 # Codex Gateway
 
-🚪 一个给 Claude Code、Codex 这类支持代理的 LLM CLI 使用的轻量显式代理。把出网流量统一收口到你自己的 VPS，再用 Basic Auth、目标域名白名单和审计日志做简洁但实用的控制。
+🚪 一个给 Codex、Claude Code 这类 CLI 使用的轻量代理。把出网流量统一收口到你自己的 VPS，再用 Basic Auth、目标域名白名单和审计日志做简洁但实用的控制。
 
 [English](./README_EN.md)
 
 </div>
 
-## 🤖 最优先用法
+## ⚡ Quick Start
 
-如果你正在使用一个能读文件、改文件、执行终端命令的 LLM / agent，最省事的方式不是手工改 YAML，而是：
+推荐默认架构：VPS 上运行代理，client 端通过本地入口接入；真正的出网、鉴权、目标约束和审计统一留在 VPS 侧。
+
+### 推荐：🤖 让 LLM 代你部署
 
 1. `git clone` 这个仓库
 2. 把 [SEND_THIS_TO_LLM.md](./SEND_THIS_TO_LLM.md) 这个文件直接发给 LLM
 3. 回答它追问的少量配置问题
 4. 它会自己读取仓库里的部署示例，在当前机器上完成服务端部署，并把客户端需要的配置返回给你
 
-这条路径应该优先于下面的手工 Quick Start。
-
-## ⚡ Quick Start
-
-推荐默认架构：VPS 上运行代理，本地只做两件事：打通 SSH 隧道，设置代理环境变量。
-
 ### 架构图
 
 ![Codex Gateway 架构图](./docs/architecture-cyberpunk-zh.svg)
 
-推荐路径里，LLM CLI 只连接本地代理入口；真正的出网、鉴权、目标约束和审计都集中在 VPS 侧。
+两种 client 接入方式对应同一套拓扑：LLM CLI 只连接本地代理入口，VPS 侧负责真正的代理转发和控制。
 
 ### 1. VPS 上部署服务端
 
@@ -41,13 +37,6 @@ cp deploy/vps.example.yaml deploy/vps.yaml
 - 如果你不想用默认账号，再改 `users[0].username`
 - 如果要放行额外域名，再改 `runtime.dest_suffix_allowlist`
 
-默认示例已经包含常见模型服务域名：
-
-- `.anthropic.com`
-- `.openai.com`
-- `.openrouter.ai`
-- `.chatgpt.com`
-
 执行部署：
 
 ```bash
@@ -57,7 +46,11 @@ systemctl --user status codex-gateway.service --no-pager
 
 这会生成 `.env`、`config/users.txt`、本地二进制，并安装对应的 `systemd --user` 服务。
 
-### 2. 首选：最简 client 接入
+### 2. Client 端选择一种接入方式
+
+两种方式都可以，区别只在于你是手动管理本地 tunnel 和代理环境变量，还是把它们固化成本地脚本。
+
+#### 方式 A：手动打通 tunnel 并设置代理环境变量
 
 先打通到 VPS 的本地隧道：
 
@@ -74,17 +67,11 @@ export HTTP_PROXY=http://<proxy.username>:<proxy.password>@127.0.0.1:8080
 export HTTPS_PROXY="$HTTP_PROXY"
 ```
 
-### 3. 开始使用
+用这种方式时，直接在当前 shell 里启动 client，不需要运行 `deploy client`。
 
-```bash
-codex
-```
+#### 方式 B：生成本地 tunnel + wrapper
 
-对大多数 client 来说，到这里就够了；本地不一定要跑 `deploy client`。
-
-### 4. 可选：自动生成本地 tunnel + wrapper
-
-如果你想把 SSH 隧道、代理环境变量和启动命令固化成本地脚本，再用这一节：
+如果你想把 SSH 隧道、代理环境变量和启动命令固化成本地脚本，就用这一种：
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml
@@ -101,7 +88,6 @@ cp deploy/client.example.yaml deploy/client.yaml
 
 ```bash
 go run ./cmd/codex-gateway deploy client
-~/.local/bin/codex-gateway-proxy codex
 ```
 
 如果只想生成文件，不立即 build / restart：
@@ -110,6 +96,13 @@ go run ./cmd/codex-gateway deploy client
 go run ./cmd/codex-gateway deploy vps --write-only
 go run ./cmd/codex-gateway deploy client --write-only
 ```
+
+### 3. 开始使用
+
+根据你选择的接入方式启动：
+
+- 方式 A：在已经设置代理环境变量的 shell 里直接运行 `codex`
+- 方式 B：通过本地 wrapper 启动 `~/.local/bin/codex-gateway-proxy codex`
 
 ## ✨ 核心特性
 
@@ -134,11 +127,3 @@ go run ./cmd/codex-gateway deploy client --write-only
 - 客户端一键部署 YAML：[deploy/client.example.yaml](./deploy/client.example.yaml)
 - Docker / Compose：[docker-compose.yml](./docker-compose.yml)
 
-最常改的项：
-
-- `users`
-- `DEST_SUFFIX_ALLOWLIST` / `runtime.dest_suffix_allowlist`
-- `DEST_HOST_ALLOWLIST`
-- `DEST_PORT_ALLOWLIST`
-- `SOURCE_ALLOWLIST_CIDRS`
-- `PROXY_TLS_ENABLED`

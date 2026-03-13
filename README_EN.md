@@ -8,7 +8,7 @@
 
 </div>
 
-## 🤖 Preferred Flow
+## 🤖 Let An LLM Deploy It
 
 If you are using an LLM / agent that can read files, edit files, and run terminal commands, the easiest path is to skip manual YAML editing:
 
@@ -17,17 +17,17 @@ If you are using an LLM / agent that can read files, edit files, and run termina
 3. Answer the small set of follow-up questions it asks
 4. Let it read the deploy examples, finish the server deployment on the current machine, and return the client-side config you need
 
-Prefer this flow over the manual quick start below.
+If you already want an agent to carry out the deployment, this path is usually simpler than the manual quick start below.
 
 ## ⚡ Quick Start
 
-Recommended default setup: run the proxy on a VPS, then keep the client side to two steps only: open an SSH tunnel and set proxy env vars.
+Recommended default setup: run the proxy on a VPS, then let the client connect through one local entrypoint while egress, auth, destination policy, and audit stay on the VPS.
 
 ### Architecture
 
 ![Codex Gateway architecture](./docs/architecture-cyberpunk-en.svg)
 
-In the recommended path, the LLM CLI only talks to a local proxy endpoint; egress, authentication, destination policy, and audit all stay on the VPS.
+Both client-side entry modes use the same topology: the LLM CLI only talks to a local proxy endpoint, and the VPS handles the actual proxying and controls.
 
 ### 1. Deploy the server on the VPS
 
@@ -57,7 +57,11 @@ systemctl --user status codex-gateway.service --no-pager
 
 This writes `.env`, `config/users.txt`, the local binary, and the matching `systemd --user` service.
 
-### 2. Preferred: minimal client setup
+### 2. Choose One Client-Side Entry Mode
+
+Both modes work. The difference is whether you manage the local tunnel and proxy env vars yourself, or generate local helper scripts for them.
+
+#### Mode A: Open The Tunnel And Set Proxy Env Vars Manually
 
 First open a local tunnel to the VPS:
 
@@ -74,17 +78,11 @@ export HTTP_PROXY=http://<proxy.username>:<proxy.password>@127.0.0.1:8080
 export HTTPS_PROXY="$HTTP_PROXY"
 ```
 
-### 3. Use it
+With this mode, start the client directly from that shell; you do not need to run `deploy client`.
 
-```bash
-codex
-```
+#### Mode B: Generate A Local Tunnel + Wrapper
 
-For most clients, that is enough; you do not have to run `deploy client` locally.
-
-### 4. Optional: generate a local tunnel + wrapper
-
-Use this path only if you want the SSH tunnel, proxy env vars, and launch command wrapped into local helper files:
+Use this path if you want the SSH tunnel, proxy env vars, and launch command written into local helper files:
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml
@@ -101,7 +99,6 @@ Run the deploy:
 
 ```bash
 go run ./cmd/codex-gateway deploy client
-~/.local/bin/codex-gateway-proxy codex
 ```
 
 If you only want to render files without building or restarting services:
@@ -110,6 +107,13 @@ If you only want to render files without building or restarting services:
 go run ./cmd/codex-gateway deploy vps --write-only
 go run ./cmd/codex-gateway deploy client --write-only
 ```
+
+### 3. Use It
+
+Start according to the mode you chose:
+
+- Mode A: run `codex` directly from the shell where the proxy env vars are set
+- Mode B: run it through the local wrapper with `~/.local/bin/codex-gateway-proxy codex`
 
 ## ✨ Core Features
 
