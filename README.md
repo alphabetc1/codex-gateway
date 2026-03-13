@@ -80,7 +80,11 @@ export HTTPS_PROXY="$HTTP_PROXY"
 codex
 ```
 
-### 4. 本地部署 client
+对大多数 client 来说，到这里就够了；本地不一定要跑 `deploy client`。
+
+### 4. 可选：自动生成本地 tunnel + wrapper
+
+如果你想把 SSH 隧道、代理环境变量和启动命令固化成本地脚本，再用这一节：
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml

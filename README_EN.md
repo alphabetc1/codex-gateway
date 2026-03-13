@@ -80,7 +80,11 @@ export HTTPS_PROXY="$HTTP_PROXY"
 codex
 ```
 
-### 4. Deploy the client locally
+For most clients, that is enough; you do not have to run `deploy client` locally.
+
+### 4. Optional: generate a local tunnel + wrapper
+
+Use this path only if you want the SSH tunnel, proxy env vars, and launch command wrapped into local helper files:
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml
