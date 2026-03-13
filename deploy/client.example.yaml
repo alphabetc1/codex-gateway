@@ -1,0 +1,27 @@
+# Copy to deploy/client.yaml and adjust values before running:
+#   go run ./cmd/codex-gateway deploy client
+
+service_name: codex-gateway-tunnel
+wrapper_name: codex-gateway-proxy
+
+ssh:
+  user: admin
+  host: your-vps.example.com
+  port: 22
+  server_alive_interval: 60
+  server_alive_count_max: 3
+  extra_args: []
+
+tunnel:
+  local_host: 127.0.0.1
+  local_port: 8080
+  remote_host: 127.0.0.1
+  remote_port: 8080
+
+proxy:
+  username: alice
+  password: change-me
+  no_proxy:
+    - localhost
+    - 127.0.0.1
+    - ::1

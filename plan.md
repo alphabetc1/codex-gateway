@@ -1,4 +1,4 @@
-# Claude Gateway Implementation Plan
+# Codex Gateway Implementation Plan
 
 ## 1. Goal and Scope
 
@@ -136,7 +136,7 @@ The process should:
 Suggested initial tree:
 
 ```text
-cmd/claude-gateway/main.go
+cmd/codex-gateway/main.go
 internal/admin/admin.go
 internal/auth/basic.go
 internal/auth/store.go
@@ -222,7 +222,7 @@ Use `Proxy-Authorization: Basic base64(username:password)`.
 - Invalid base64: return `407`
 - Unknown user: return `407`
 - Password mismatch: return `407`
-- Always include `Proxy-Authenticate: Basic realm="claude-gateway"`
+- Always include `Proxy-Authenticate: Basic realm="codex-gateway"`
 
 ### 6.3 Auth Store
 Implement:

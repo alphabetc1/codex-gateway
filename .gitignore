@@ -1,3 +1,5 @@
 .env
 bin/
 config/users.txt
+deploy/vps.yaml
+deploy/client.yaml

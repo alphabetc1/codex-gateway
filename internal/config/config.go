@@ -48,13 +48,13 @@ type Config struct {
 	AllowPrivateDestinations bool
 	MaxConnsPerIP            int
 
-	ServerReadHeaderTimeout      time.Duration
-	ServerIdleTimeout            time.Duration
-	UpstreamDialTimeout          time.Duration
-	UpstreamTLSHandshakeTimeout  time.Duration
+	ServerReadHeaderTimeout       time.Duration
+	ServerIdleTimeout             time.Duration
+	UpstreamDialTimeout           time.Duration
+	UpstreamTLSHandshakeTimeout   time.Duration
 	UpstreamResponseHeaderTimeout time.Duration
-	TunnelIdleTimeout            time.Duration
-	MaxHeaderBytes               int
+	TunnelIdleTimeout             time.Duration
+	MaxHeaderBytes                int
 
 	LogLevel          string
 	LogFormat         string
@@ -67,47 +67,59 @@ type Config struct {
 }
 
 func LoadFromEnv() (Config, error) {
+	return loadFromLookup(func(key string) string {
+		return os.Getenv(key)
+	})
+}
+
+func LoadFromMap(values map[string]string) (Config, error) {
+	return loadFromLookup(func(key string) string {
+		return values[key]
+	})
+}
+
+func loadFromLookup(lookup func(string) string) (Config, error) {
 	cfg := Config{
-		ProxyListenAddr:               getenvDefault("PROXY_LISTEN_ADDR", defaultProxyListenAddr),
-		ProxyListenPort:               getenvInt("PROXY_LISTEN_PORT", defaultProxyListenPort),
-		AdminListenAddr:               getenvDefault("ADMIN_LISTEN_ADDR", defaultAdminListenAddr),
-		AdminListenPort:               getenvInt("ADMIN_LISTEN_PORT", defaultAdminListenPort),
-		ProxyTLSEnabled:               getenvBool("PROXY_TLS_ENABLED", false),
-		ProxyTLSCertFile:              strings.TrimSpace(os.Getenv("PROXY_TLS_CERT_FILE")),
-		ProxyTLSKeyFile:               strings.TrimSpace(os.Getenv("PROXY_TLS_KEY_FILE")),
-		AuthUsersFile:                 strings.TrimSpace(os.Getenv("AUTH_USERS_FILE")),
-		AuthUsers:                     strings.TrimSpace(os.Getenv("AUTH_USERS")),
-		AllowPrivateDestinations:      getenvBool("ALLOW_PRIVATE_DESTINATIONS", false),
-		MaxConnsPerIP:                 getenvInt("MAX_CONNS_PER_IP", defaultMaxConnsPerIP),
-		ServerReadHeaderTimeout:       getenvDuration("SERVER_READ_HEADER_TIMEOUT", defaultReadHeaderTimeout),
-		ServerIdleTimeout:             getenvDuration("SERVER_IDLE_TIMEOUT", defaultIdleTimeout),
-		UpstreamDialTimeout:           getenvDuration("UPSTREAM_DIAL_TIMEOUT", defaultUpstreamDialTimeout),
-		UpstreamTLSHandshakeTimeout:   getenvDuration("UPSTREAM_TLS_HANDSHAKE_TIMEOUT", defaultUpstreamTLSHandshakeTimeout),
-		UpstreamResponseHeaderTimeout: getenvDuration("UPSTREAM_RESPONSE_HEADER_TIMEOUT", defaultUpstreamResponseHeaderTimeout),
-		TunnelIdleTimeout:             getenvDuration("TUNNEL_IDLE_TIMEOUT", defaultTunnelIdleTimeout),
-		MaxHeaderBytes:                getenvInt("MAX_HEADER_BYTES", defaultMaxHeaderBytes),
-		LogLevel:                      strings.TrimSpace(getenvDefault("LOG_LEVEL", "info")),
-		LogFormat:                     strings.TrimSpace(getenvDefault("LOG_FORMAT", "json")),
-		AccessLogEnabled:              getenvBool("ACCESS_LOG_ENABLED", true),
-		MetricsEnabled:                getenvBool("METRICS_ENABLED", false),
-		AllowPublicAdmin:              getenvBool("ALLOW_PUBLIC_ADMIN", false),
-		AllowEmptyDestACL:             getenvBool("ALLOW_EMPTY_DEST_ALLOWLIST", false),
-		AllowInsecurePublicProxy:      getenvBool("ALLOW_INSECURE_PUBLIC_PROXY", false),
+		ProxyListenAddr:               getenvDefault(lookup, "PROXY_LISTEN_ADDR", defaultProxyListenAddr),
+		ProxyListenPort:               getenvInt(lookup, "PROXY_LISTEN_PORT", defaultProxyListenPort),
+		AdminListenAddr:               getenvDefault(lookup, "ADMIN_LISTEN_ADDR", defaultAdminListenAddr),
+		AdminListenPort:               getenvInt(lookup, "ADMIN_LISTEN_PORT", defaultAdminListenPort),
+		ProxyTLSEnabled:               getenvBool(lookup, "PROXY_TLS_ENABLED", false),
+		ProxyTLSCertFile:              strings.TrimSpace(lookup("PROXY_TLS_CERT_FILE")),
+		ProxyTLSKeyFile:               strings.TrimSpace(lookup("PROXY_TLS_KEY_FILE")),
+		AuthUsersFile:                 strings.TrimSpace(lookup("AUTH_USERS_FILE")),
+		AuthUsers:                     strings.TrimSpace(lookup("AUTH_USERS")),
+		AllowPrivateDestinations:      getenvBool(lookup, "ALLOW_PRIVATE_DESTINATIONS", false),
+		MaxConnsPerIP:                 getenvInt(lookup, "MAX_CONNS_PER_IP", defaultMaxConnsPerIP),
+		ServerReadHeaderTimeout:       getenvDuration(lookup, "SERVER_READ_HEADER_TIMEOUT", defaultReadHeaderTimeout),
+		ServerIdleTimeout:             getenvDuration(lookup, "SERVER_IDLE_TIMEOUT", defaultIdleTimeout),
+		UpstreamDialTimeout:           getenvDuration(lookup, "UPSTREAM_DIAL_TIMEOUT", defaultUpstreamDialTimeout),
+		UpstreamTLSHandshakeTimeout:   getenvDuration(lookup, "UPSTREAM_TLS_HANDSHAKE_TIMEOUT", defaultUpstreamTLSHandshakeTimeout),
+		UpstreamResponseHeaderTimeout: getenvDuration(lookup, "UPSTREAM_RESPONSE_HEADER_TIMEOUT", defaultUpstreamResponseHeaderTimeout),
+		TunnelIdleTimeout:             getenvDuration(lookup, "TUNNEL_IDLE_TIMEOUT", defaultTunnelIdleTimeout),
+		MaxHeaderBytes:                getenvInt(lookup, "MAX_HEADER_BYTES", defaultMaxHeaderBytes),
+		LogLevel:                      strings.TrimSpace(getenvDefault(lookup, "LOG_LEVEL", "info")),
+		LogFormat:                     strings.TrimSpace(getenvDefault(lookup, "LOG_FORMAT", "json")),
+		AccessLogEnabled:              getenvBool(lookup, "ACCESS_LOG_ENABLED", true),
+		MetricsEnabled:                getenvBool(lookup, "METRICS_ENABLED", false),
+		AllowPublicAdmin:              getenvBool(lookup, "ALLOW_PUBLIC_ADMIN", false),
+		AllowEmptyDestACL:             getenvBool(lookup, "ALLOW_EMPTY_DEST_ALLOWLIST", false),
+		AllowInsecurePublicProxy:      getenvBool(lookup, "ALLOW_INSECURE_PUBLIC_PROXY", false),
 	}
 
 	var err error
-	cfg.SourceAllowlist, err = parsePrefixes(os.Getenv("SOURCE_ALLOWLIST_CIDRS"))
+	cfg.SourceAllowlist, err = parsePrefixes(lookup("SOURCE_ALLOWLIST_CIDRS"))
 	if err != nil {
 		return Config{}, fmt.Errorf("parse SOURCE_ALLOWLIST_CIDRS: %w", err)
 	}
 
-	cfg.DestPorts, err = parsePorts(getenvDefault("DEST_PORT_ALLOWLIST", "443"))
+	cfg.DestPorts, err = parsePorts(getenvDefault(lookup, "DEST_PORT_ALLOWLIST", "443"))
 	if err != nil {
 		return Config{}, fmt.Errorf("parse DEST_PORT_ALLOWLIST: %w", err)
 	}
 
-	cfg.DestHosts = parseHostSet(os.Getenv("DEST_HOST_ALLOWLIST"))
-	cfg.DestSuffixes = parseSuffixes(os.Getenv("DEST_SUFFIX_ALLOWLIST"))
+	cfg.DestHosts = parseHostSet(lookup("DEST_HOST_ALLOWLIST"))
+	cfg.DestSuffixes = parseSuffixes(lookup("DEST_SUFFIX_ALLOWLIST"))
 
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
@@ -197,16 +209,16 @@ func (c Config) AdminListenAddress() string {
 	return net.JoinHostPort(c.AdminListenAddr, strconv.Itoa(c.AdminListenPort))
 }
 
-func getenvDefault(key, fallback string) string {
-	value := strings.TrimSpace(os.Getenv(key))
+func getenvDefault(lookup func(string) string, key, fallback string) string {
+	value := strings.TrimSpace(lookup(key))
 	if value == "" {
 		return fallback
 	}
 	return value
 }
 
-func getenvInt(key string, fallback int) int {
-	raw := strings.TrimSpace(os.Getenv(key))
+func getenvInt(lookup func(string) string, key string, fallback int) int {
+	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return fallback
 	}
@@ -217,8 +229,8 @@ func getenvInt(key string, fallback int) int {
 	return value
 }
 
-func getenvBool(key string, fallback bool) bool {
-	raw := strings.TrimSpace(os.Getenv(key))
+func getenvBool(lookup func(string) string, key string, fallback bool) bool {
+	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return fallback
 	}
@@ -229,8 +241,8 @@ func getenvBool(key string, fallback bool) bool {
 	return value
 }
 
-func getenvDuration(key string, fallback time.Duration) time.Duration {
-	raw := strings.TrimSpace(os.Getenv(key))
+func getenvDuration(lookup func(string) string, key string, fallback time.Duration) time.Duration {
+	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return fallback
 	}

@@ -18,10 +18,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"claude-gateway/internal/auth"
-	"claude-gateway/internal/limiter"
-	"claude-gateway/internal/logging"
-	"claude-gateway/internal/netutil"
+	"codex-gateway/internal/auth"
+	"codex-gateway/internal/limiter"
+	"codex-gateway/internal/logging"
+	"codex-gateway/internal/netutil"
 )
 
 const (

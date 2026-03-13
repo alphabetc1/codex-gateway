@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -10,21 +11,42 @@ import (
 	"syscall"
 	"time"
 
-	"claude-gateway/internal/admin"
-	"claude-gateway/internal/auth"
-	"claude-gateway/internal/config"
-	"claude-gateway/internal/limiter"
-	"claude-gateway/internal/logging"
-	"claude-gateway/internal/netutil"
-	"claude-gateway/internal/proxy"
-	"claude-gateway/internal/version"
+	"codex-gateway/internal/admin"
+	"codex-gateway/internal/auth"
+	"codex-gateway/internal/config"
+	"codex-gateway/internal/deploy"
+	"codex-gateway/internal/limiter"
+	"codex-gateway/internal/logging"
+	"codex-gateway/internal/netutil"
+	"codex-gateway/internal/proxy"
+	"codex-gateway/internal/version"
 )
 
 func main() {
-	os.Exit(run())
+	os.Exit(run(os.Args[1:]))
 }
 
-func run() int {
+func run(args []string) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "deploy":
+			if err := deploy.Run(args[1:], os.Stdout, os.Stderr); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			return 0
+		case "version", "--version", "-version":
+			fmt.Fprintln(os.Stdout, version.Version)
+			return 0
+		case "help", "--help", "-h":
+			fmt.Fprintln(os.Stdout, "Usage:")
+			fmt.Fprintln(os.Stdout, "  codex-gateway")
+			fmt.Fprintln(os.Stdout, "  codex-gateway deploy vps [-config deploy/vps.yaml] [--write-only]")
+			fmt.Fprintln(os.Stdout, "  codex-gateway deploy client [-config deploy/client.yaml] [--write-only]")
+			return 0
+		}
+	}
+
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
 		slog.Error("load config failed", "error", err.Error())
@@ -59,13 +81,13 @@ func run() int {
 			Resolver:     netutil.NetResolver{},
 			AllowPrivate: cfg.AllowPrivateDestinations,
 		},
-		SourceIPs:                    sourceMatcher,
-		Metrics:                      metrics,
-		UpstreamDialTimeout:          cfg.UpstreamDialTimeout,
-		UpstreamTLSHandshakeTimeout:  cfg.UpstreamTLSHandshakeTimeout,
+		SourceIPs:                     sourceMatcher,
+		Metrics:                       metrics,
+		UpstreamDialTimeout:           cfg.UpstreamDialTimeout,
+		UpstreamTLSHandshakeTimeout:   cfg.UpstreamTLSHandshakeTimeout,
 		UpstreamResponseHeaderTimeout: cfg.UpstreamResponseHeaderTimeout,
-		IdleTimeout:                  cfg.ServerIdleTimeout,
-		TunnelIdleTimeout:            cfg.TunnelIdleTimeout,
+		IdleTimeout:                   cfg.ServerIdleTimeout,
+		TunnelIdleTimeout:             cfg.TunnelIdleTimeout,
 	})
 
 	proxyServer := &http.Server{

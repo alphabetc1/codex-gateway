@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"claude-gateway/internal/proxy"
+	"codex-gateway/internal/proxy"
 )
 
 type Options struct {

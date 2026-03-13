@@ -1,0 +1,40 @@
+# Copy to deploy/vps.yaml and adjust values before running:
+#   go run ./cmd/codex-gateway deploy vps
+
+project_root: .
+binary_output: bin/codex-gateway
+service_name: codex-gateway
+
+users:
+  - username: alice
+    password: change-me
+
+runtime:
+  proxy_listen_addr: 127.0.0.1
+  proxy_listen_port: 8080
+  admin_listen_addr: 127.0.0.1
+  admin_listen_port: 9090
+  source_allowlist_cidrs:
+    - 127.0.0.1/32
+    - ::1/128
+  dest_port_allowlist:
+    - 443
+  dest_suffix_allowlist:
+    - .anthropic.com
+    - .openai.com
+    - .openrouter.ai
+    - .chatgpt.com
+  max_conns_per_ip: 16
+  server_read_header_timeout: 10s
+  server_idle_timeout: 90s
+  upstream_dial_timeout: 10s
+  upstream_tls_handshake_timeout: 10s
+  upstream_response_header_timeout: 30s
+  tunnel_idle_timeout: 10m
+  max_header_bytes: 1048576
+  log_level: info
+  log_format: json
+  access_log_enabled: true
+  metrics_enabled: true
+
+env_overrides: {}

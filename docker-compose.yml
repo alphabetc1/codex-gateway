@@ -1,7 +1,7 @@
 services:
-  claude-gateway:
+  codex-gateway:
     build: .
-    container_name: claude-gateway
+    container_name: codex-gateway
     restart: unless-stopped
     env_file:
       - .env

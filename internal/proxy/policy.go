@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"claude-gateway/internal/netutil"
+	"codex-gateway/internal/netutil"
 )
 
 const (

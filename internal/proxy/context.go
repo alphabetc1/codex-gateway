@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"claude-gateway/internal/logging"
+	"codex-gateway/internal/logging"
 )
 
 var requestCounter atomic.Uint64

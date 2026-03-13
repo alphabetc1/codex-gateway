@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"claude-gateway/internal/netutil"
+	"codex-gateway/internal/netutil"
 )
 
 type staticResolver map[string][]netip.Addr

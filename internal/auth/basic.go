@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const ProxyAuthenticateValue = `Basic realm="claude-gateway"`
+const ProxyAuthenticateValue = `Basic realm="codex-gateway"`
 
 var (
 	ErrMissingProxyAuthorization = errors.New("missing proxy authorization")
