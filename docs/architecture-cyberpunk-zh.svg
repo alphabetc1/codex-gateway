@@ -81,6 +81,22 @@
     <marker id="arrowAmber" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto">
       <path d="M 0 2 L 14 8 L 0 14 L 4 8 Z" fill="#ffb84d"/>
     </marker>
+    <style>
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .sans { font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; }
+      .kicker { font-size: 15px; font-weight: 700; letter-spacing: 2.4px; }
+      .hero { font-size: 46px; font-weight: 800; letter-spacing: 2px; }
+      .subtitle { font-size: 20px; font-weight: 600; }
+      .panel-tag { font-size: 15px; font-weight: 700; letter-spacing: 2.2px; }
+      .panel-note { font-size: 14px; font-weight: 600; }
+      .node-title { font-size: 26px; font-weight: 800; }
+      .node-copy { font-size: 18px; font-weight: 600; }
+      .node-meta { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+      .provider-meta { font-size: 17px; font-weight: 600; }
+      .flow-label { font-size: 14px; font-weight: 700; letter-spacing: 1.7px; }
+      .footer-label { font-size: 15px; font-weight: 700; letter-spacing: 1.4px; }
+      .micro { font-size: 12px; font-weight: 700; letter-spacing: 1.6px; }
+    </style>
   </defs>
 
   <rect width="1600" height="960" fill="url(#bg)"/>
@@ -94,83 +110,92 @@
   <path d="M 80 112 H 280" stroke="#29d8ff" stroke-width="4" stroke-linecap="round" filter="url(#glowCyan)"/>
   <path d="M 1320 112 H 1520" stroke="#ffb84d" stroke-width="4" stroke-linecap="round" filter="url(#glowAmber)"/>
 
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
-    <text x="86" y="88" fill="#7aefff" font-size="14" letter-spacing="3">PROXY ARCHITECTURE / NEON OPS</text>
-    <text x="86" y="140" fill="#ffffff" font-size="44" font-weight="700" letter-spacing="2">CODEX GATEWAY</text>
-    <text x="86" y="176" fill="#9bdcf7" font-size="18">把 LLM CLI 的出网收口到你自己的 VPS，再做鉴权、目标约束与审计。</text>
+  <g>
+    <text x="86" y="88" fill="#7aefff" class="mono kicker">PROXY ARCHITECTURE / NEON OPS</text>
+    <text x="86" y="140" fill="#ffffff" class="sans hero">CODEX GATEWAY</text>
+    <text x="86" y="176" fill="#9bdcf7" class="sans subtitle">把 LLM CLI 出网统一收口到你的 VPS，鉴权、约束与审计都留在自己手里。</text>
   </g>
 
   <g transform="translate(70 210)">
     <path d="M 0 28 L 28 0 H 382 L 410 28 V 586 L 382 614 H 28 L 0 586 Z" fill="url(#panelCyan)" stroke="#29d8ff" stroke-width="2" filter="url(#glowCyan)"/>
     <path d="M 0 88 H 410" stroke="#29d8ff" stroke-opacity="0.35" stroke-width="1.5"/>
-    <text x="28" y="46" fill="#95f4ff" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">LOCAL // 本地入口</text>
-    <text x="28" y="72" fill="#dffcff" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">所有代理感知型 CLI 都只看见本地地址</text>
+    <rect x="282" y="28" width="96" height="22" rx="11" fill="#07131d" stroke="#48e2ff" stroke-opacity="0.48"/>
+    <text x="28" y="46" fill="#95f4ff" class="mono panel-tag">LOCAL // 本地入口</text>
+    <text x="330" y="43" fill="#7aefff" class="mono micro" text-anchor="middle">LOCAL LOOP</text>
+    <text x="28" y="72" fill="#dffcff" class="sans panel-note">代理感知 CLI 只看到一个本地入口</text>
 
-    <rect x="28" y="124" width="354" height="118" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
-    <text x="48" y="162" fill="#ffffff" font-size="24" font-weight="700">LLM CLI</text>
-    <text x="48" y="192" fill="#a9eaff" font-size="16">Claude Code / Codex / 其他支持代理的终端代理</text>
-    <text x="48" y="216" fill="#7bdfff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">只连本地 HTTP(S)_PROXY</text>
+    <rect x="28" y="124" width="354" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <text x="48" y="162" fill="#ffffff" class="sans node-title">LLM CLI</text>
+    <text x="48" y="194" fill="#a9eaff" class="sans node-copy">Claude Code / Codex / 其他 CLI</text>
+    <text x="48" y="220" fill="#7bdfff" class="mono node-meta">只连本地 HTTP(S)_PROXY</text>
 
-    <path d="M 205 242 V 286" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
+    <path d="M 205 246 V 286" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
 
-    <rect x="28" y="286" width="354" height="116" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
-    <text x="48" y="324" fill="#ffffff" font-size="24" font-weight="700">Proxy Wrapper</text>
-    <text x="48" y="354" fill="#a9eaff" font-size="16">`codex-gateway-proxy` 注入 `HTTP_PROXY` / `HTTPS_PROXY`</text>
-    <text x="48" y="378" fill="#7bdfff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">本地入口统一，CLI 无需理解远端拓扑</text>
+    <rect x="28" y="286" width="354" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <text x="48" y="324" fill="#ffffff" class="sans node-title">Proxy Wrapper</text>
+    <text x="48" y="356" fill="#a9eaff" class="sans node-copy">启动时注入代理环境变量</text>
+    <text x="48" y="382" fill="#7bdfff" class="mono node-meta">统一本地入口，不暴露远端拓扑</text>
 
-    <path d="M 205 402 V 448" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
+    <path d="M 205 408 V 448" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
 
-    <rect x="28" y="448" width="354" height="118" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
-    <text x="48" y="486" fill="#ffffff" font-size="24" font-weight="700">SSH Tunnel</text>
-    <text x="48" y="516" fill="#a9eaff" font-size="16">127.0.0.1:8080 -&gt; VPS:127.0.0.1:8080</text>
-    <text x="48" y="540" fill="#7bdfff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">加密跳板，默认不暴露公网代理面</text>
+    <rect x="28" y="448" width="354" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <text x="48" y="486" fill="#ffffff" class="sans node-title">SSH Tunnel</text>
+    <text x="48" y="516" fill="#a9eaff" class="sans node-copy">
+      <tspan x="48" y="516">127.0.0.1:8080</tspan>
+      <tspan x="48" dy="22">-&gt; VPS:127.0.0.1:8080</tspan>
+    </text>
+    <text x="48" y="562" fill="#7bdfff" class="mono node-meta">SSH 加密跳板，默认不暴露公网</text>
   </g>
 
   <g transform="translate(520 170)">
     <path d="M 0 28 L 28 0 H 502 L 530 28 V 666 L 502 694 H 28 L 0 666 Z" fill="url(#panelPink)" stroke="#ff4fd8" stroke-width="2.2" filter="url(#glowPink)"/>
     <path d="M 0 96 H 530" stroke="#ff4fd8" stroke-opacity="0.36" stroke-width="1.5"/>
-    <text x="30" y="46" fill="#ffbaf2" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">VPS // 出口控制核心</text>
-    <text x="30" y="74" fill="#ffe2fb" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">真正的出网、鉴权、目标约束与审计都收口在这里</text>
+    <rect x="388" y="28" width="112" height="22" rx="11" fill="#180b28" stroke="#ff76e2" stroke-opacity="0.48"/>
+    <text x="30" y="46" fill="#ffbaf2" class="mono panel-tag">VPS // 出口控制核心</text>
+    <text x="444" y="43" fill="#ffbaf2" class="mono micro" text-anchor="middle">CONTROL CORE</text>
+    <text x="30" y="74" fill="#ffe2fb" class="sans panel-note">出网、鉴权、约束、审计全部收口到这里</text>
 
     <rect x="30" y="126" width="470" height="136" rx="18" fill="#1b0f31" stroke="#ff7be6" stroke-width="1.8"/>
-    <text x="56" y="168" fill="#ffffff" font-size="28" font-weight="700">codex-gateway</text>
-    <text x="56" y="202" fill="#f4c6ff" font-size="18">HTTP Forward + HTTPS CONNECT</text>
-    <text x="56" y="228" fill="#d99df3" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">单二进制代理核心，处理标准显式代理流量</text>
+    <text x="56" y="168" fill="#ffffff" class="sans node-title">codex-gateway</text>
+    <text x="56" y="204" fill="#f4c6ff" class="sans node-copy">显式代理核心 / HTTP + CONNECT</text>
+    <text x="56" y="232" fill="#d99df3" class="mono node-meta">单二进制，接住标准代理流量</text>
 
     <path d="M 264 262 V 318" stroke="#ff79e5" stroke-width="3" stroke-linecap="round" filter="url(#glowPink)"/>
 
     <rect x="30" y="318" width="470" height="164" rx="18" fill="url(#nodeGreen)" stroke="#19f5b3" stroke-width="1.8"/>
-    <text x="56" y="358" fill="#ffffff" font-size="26" font-weight="700">Policy Gate</text>
-    <text x="56" y="390" fill="#b9fff0" font-size="17">Basic Auth / 源 IP allowlist / 每 IP 并发限制</text>
-    <text x="56" y="418" fill="#9ff9e4" font-size="17">目标 host / suffix / port allowlist</text>
-    <text x="56" y="446" fill="#7be9cf" font-size="17">DNS 解析后二次校验，默认拒绝私网与保留地址</text>
+    <text x="56" y="358" fill="#ffffff" class="sans node-title">Policy Gate</text>
+    <text x="56" y="392" fill="#b9fff0" class="sans node-copy">Basic Auth / 源 IP / 并发限制</text>
+    <text x="56" y="420" fill="#9ff9e4" class="sans node-copy">目标 Host / Suffix / Port</text>
+    <text x="56" y="448" fill="#7be9cf" class="sans node-copy">DNS 二次校验，默认拒绝私网</text>
 
     <rect x="30" y="516" width="470" height="128" rx="18" fill="url(#nodeViolet)" stroke="#b388ff" stroke-width="1.7"/>
-    <text x="56" y="556" fill="#ffffff" font-size="26" font-weight="700">Audit Surface</text>
-    <text x="56" y="588" fill="#ead7ff" font-size="17">JSON 审计日志 /healthz /metrics</text>
-    <text x="56" y="614" fill="#ccb0ff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">把决策结果、失败分类和运行状态留在你自己的机器上</text>
+    <text x="56" y="556" fill="#ffffff" class="sans node-title">Audit Surface</text>
+    <text x="56" y="590" fill="#ead7ff" class="sans node-copy">JSON 审计日志 /healthz /metrics</text>
+    <text x="56" y="616" fill="#ccb0ff" class="mono node-meta">决策、失败、状态都留在你这边</text>
   </g>
 
   <g transform="translate(1120 210)">
     <path d="M 0 28 L 28 0 H 382 L 410 28 V 586 L 382 614 H 28 L 0 586 Z" fill="url(#panelAmber)" stroke="#ffb84d" stroke-width="2" filter="url(#glowAmber)"/>
     <path d="M 0 88 H 410" stroke="#ffb84d" stroke-opacity="0.35" stroke-width="1.5"/>
-    <text x="28" y="46" fill="#ffd699" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">UPSTREAM // 模型服务</text>
-    <text x="28" y="72" fill="#fff0d2" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">只把允许的目标域名和端口真正放行出去</text>
+    <rect x="262" y="28" width="110" height="22" rx="11" fill="#241308" stroke="#ffcf82" stroke-opacity="0.48"/>
+    <text x="28" y="46" fill="#ffd699" class="mono panel-tag">UPSTREAM // 模型服务</text>
+    <text x="317" y="43" fill="#ffd699" class="mono micro" text-anchor="middle">EGRESS LIST</text>
+    <text x="28" y="72" fill="#fff0d2" class="sans panel-note">只放行允许的目标域名和端口</text>
 
     <rect x="28" y="132" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
-    <text x="48" y="170" fill="#ffffff" font-size="24" font-weight="700">Anthropic</text>
-    <text x="48" y="198" fill="#ffdca3" font-size="16">`.anthropic.com`</text>
+    <text x="48" y="170" fill="#ffffff" class="sans node-title">Anthropic</text>
+    <text x="48" y="198" fill="#ffdca3" class="sans provider-meta">.anthropic.com</text>
 
     <rect x="28" y="258" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
-    <text x="48" y="296" fill="#ffffff" font-size="24" font-weight="700">OpenAI</text>
-    <text x="48" y="324" fill="#ffdca3" font-size="16">`.openai.com` / `.chatgpt.com`</text>
+    <text x="48" y="296" fill="#ffffff" class="sans node-title">OpenAI</text>
+    <text x="48" y="324" fill="#ffdca3" class="sans provider-meta">.openai.com / .chatgpt.com</text>
 
     <rect x="28" y="384" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
-    <text x="48" y="422" fill="#ffffff" font-size="24" font-weight="700">OpenRouter</text>
-    <text x="48" y="450" fill="#ffdca3" font-size="16">`.openrouter.ai`</text>
+    <text x="48" y="422" fill="#ffffff" class="sans node-title">OpenRouter</text>
+    <text x="48" y="450" fill="#ffdca3" class="sans provider-meta">.openrouter.ai</text>
 
     <rect x="28" y="510" width="354" height="56" rx="14" fill="#2b1908" stroke="#ffcf82" stroke-dasharray="6 8" stroke-width="1.4"/>
-    <text x="48" y="545" fill="#ffdfac" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">可按需扩展更多上游，但默认先最小放行</text>
+    <text x="48" y="545" fill="#ffdfac" class="sans provider-meta">默认最小放行，可按需扩展</text>
   </g>
 
   <g fill="none" stroke-linecap="round">
@@ -178,9 +203,9 @@
     <path d="M 1052 520 C 1090 520, 1100 520, 1134 520" stroke="#ffb84d" stroke-width="4" marker-end="url(#arrowAmber)" filter="url(#glowAmber)"/>
   </g>
 
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">
-    <text x="606" y="498" fill="#9bf0ff" letter-spacing="1.5">ENCRYPTED HOP</text>
-    <text x="1166" y="498" fill="#ffd699" letter-spacing="1.5">ALLOWED EGRESS</text>
+  <g>
+    <text x="606" y="498" fill="#9bf0ff" class="mono flow-label">SSH TUNNEL</text>
+    <text x="1154" y="498" fill="#ffd699" class="mono flow-label">ALLOWLIST EGRESS</text>
   </g>
 
   <g opacity="0.65">
@@ -188,12 +213,12 @@
     <circle cx="1058" cy="520" r="5" fill="#ffb84d" filter="url(#glowAmber)"/>
   </g>
 
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
-    <text x="86" y="892" fill="#74d3f3" font-size="14" letter-spacing="2">LOCAL CLI</text>
-    <text x="244" y="892" fill="#74d3f3" font-size="14">-&gt;</text>
-    <text x="284" y="892" fill="#ff99ea" font-size="14" letter-spacing="2">VPS CONTROL GATE</text>
-    <text x="520" y="892" fill="#ff99ea" font-size="14">-&gt;</text>
-    <text x="560" y="892" fill="#ffd08c" font-size="14" letter-spacing="2">MODEL CLOUD</text>
-    <text x="1140" y="892" fill="#96f9dd" font-size="14">AUTH / POLICY / AUDIT STAY ON YOUR SIDE</text>
+  <g>
+    <text x="86" y="892" fill="#74d3f3" class="mono footer-label">本地 CLI</text>
+    <text x="190" y="892" fill="#74d3f3" class="mono footer-label">-&gt;</text>
+    <text x="230" y="892" fill="#ff99ea" class="mono footer-label">VPS 控制门</text>
+    <text x="376" y="892" fill="#ff99ea" class="mono footer-label">-&gt;</text>
+    <text x="416" y="892" fill="#ffd08c" class="mono footer-label">模型 API</text>
+    <text x="1204" y="892" fill="#96f9dd" class="mono footer-label">鉴权 / 约束 / 审计</text>
   </g>
 </svg>
