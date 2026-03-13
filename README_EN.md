@@ -2,7 +2,7 @@
 
 # Codex Gateway
 
-🚪 A lightweight explicit proxy for Claude Code, Codex, and other proxy-aware LLM CLIs. Run it on your own VPS and keep egress under simple, practical control with Basic Auth, destination allowlists, and audit logs.
+🚪 A lightweight explicit proxy for Claude Code, Codex, and other proxy-capable LLM CLIs. Run it on your own VPS and keep egress centralized under simple, practical control with Basic Auth, destination allowlists, and audit logs.
 
 [简体中文](./README.md)
 
@@ -10,18 +10,52 @@
 
 ## 🤖 Preferred Flow
 
-If you are using an LLM / agent that can read files, edit files, and run terminal commands, the easiest path is not manual YAML editing:
+If you are using an LLM / agent that can read files, edit files, and run terminal commands, the easiest path is to skip manual YAML editing:
 
 1. `git clone` this repo
 2. Send [SEND_THIS_TO_LLM.md](./SEND_THIS_TO_LLM.md) directly to the LLM
 3. Answer the small set of follow-up questions it asks
-4. Let it read the deploy examples, deploy the server on the current machine, and return the client-side config you need
+4. Let it read the deploy examples, finish the server deployment on the current machine, and return the client-side config you need
 
 Prefer this flow over the manual quick start below.
 
 ## ⚡ Quick Start
 
-Recommended default setup: run the proxy on a VPS, then reach it locally through an SSH tunnel.
+Recommended default setup: run the proxy on a VPS and reach it locally through an SSH tunnel.
+
+### Architecture
+
+```mermaid
+flowchart TB
+  classDef local fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1px;
+  classDef gateway fill:#EFF6FF,stroke:#2563EB,color:#0F172A,stroke-width:1.5px;
+  classDef guard fill:#ECFDF5,stroke:#16A34A,color:#052E16,stroke-width:1px;
+  classDef upstream fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:1px;
+
+  subgraph LOCAL["Local machine"]
+    direction TB
+    CLI["LLM CLI<br/>Claude Code / Codex"]:::local
+    WRAP["codex-gateway-proxy<br/>injects HTTP(S)_PROXY"]:::local
+    TUNNEL["SSH tunnel<br/>127.0.0.1:8080 -> VPS:127.0.0.1:8080"]:::local
+    CLI --> WRAP --> TUNNEL
+  end
+
+  subgraph VPS["VPS"]
+    direction TB
+    PROXY["codex-gateway<br/>HTTP Forward / HTTPS CONNECT"]:::gateway
+    POLICY["Controls<br/>Basic Auth / source IP / concurrency<br/>destination allowlists / SSRF checks"]:::guard
+    OBS["Observability<br/>JSON audit logs /healthz /metrics"]:::guard
+    PROXY --> POLICY
+    PROXY -.-> OBS
+  end
+
+  UPSTREAM["Upstream model services<br/>Anthropic / OpenAI / OpenRouter"]:::upstream
+
+  TUNNEL --> PROXY
+  POLICY --> UPSTREAM
+```
+
+In the recommended path, the LLM CLI only talks to a local proxy endpoint; egress, authentication, destination policy, and audit all stay on the VPS.
 
 ### 1. Deploy the server on the VPS
 
@@ -29,13 +63,13 @@ Recommended default setup: run the proxy on a VPS, then reach it locally through
 cp deploy/vps.example.yaml deploy/vps.yaml
 ```
 
-Only change these fields:
+Start with these fields:
 
 - `users[0].password`
 - If you do not want the default username, also change `users[0].username`
 - If you need extra destinations, extend `runtime.dest_suffix_allowlist`
 
-The default sample already includes the common model domains:
+The default sample already includes the common model service domains:
 
 - `.anthropic.com`
 - `.openai.com`
@@ -49,7 +83,7 @@ go run ./cmd/codex-gateway deploy vps
 systemctl --user status codex-gateway.service --no-pager
 ```
 
-This writes `.env`, `config/users.txt`, the local binary, and a `systemd --user` service.
+This writes `.env`, `config/users.txt`, the local binary, and the matching `systemd --user` service.
 
 ### 2. Deploy the client locally
 
@@ -57,11 +91,11 @@ This writes `.env`, `config/users.txt`, the local binary, and a `systemd --user`
 cp deploy/client.example.yaml deploy/client.yaml
 ```
 
-Only change these fields:
+Start with these fields:
 
 - `ssh.user`
 - `ssh.host`
-- `proxy.password` to match the server password
+- `proxy.password` to match the server-side password
 - If you changed the username, change `proxy.username` too
 
 Run the deploy:

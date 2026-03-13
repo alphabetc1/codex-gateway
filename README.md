@@ -2,7 +2,7 @@
 
 # Codex Gateway
 
-🚪 一个给 Claude Code、Codex 这类代理感知型 LLM CLI 用的轻量显式代理。把出网流量收口到你自己的 VPS，再用 Basic Auth、目标域名白名单和审计日志做最小但实用的控制。
+🚪 一个给 Claude Code、Codex 这类支持代理的 LLM CLI 使用的轻量显式代理。把出网流量统一收口到你自己的 VPS，再用 Basic Auth、目标域名白名单和审计日志做简洁但实用的控制。
 
 [English](./README_EN.md)
 
@@ -10,18 +10,52 @@
 
 ## 🤖 最优先用法
 
-如果你正在用一个可以读文件、改文件、执行终端命令的 LLM / agent，最简单的方式不是手工改 YAML，而是：
+如果你正在使用一个能读文件、改文件、执行终端命令的 LLM / agent，最省事的方式不是手工改 YAML，而是：
 
 1. `git clone` 这个仓库
 2. 把 [SEND_THIS_TO_LLM.md](./SEND_THIS_TO_LLM.md) 这个文件直接发给 LLM
 3. 回答它追问的少量配置问题
-4. 它会自己读取仓库里的部署示例，在当前机器上部署服务端，并把客户端需要的配置返回给你
+4. 它会自己读取仓库里的部署示例，在当前机器上完成服务端部署，并把客户端需要的配置返回给你
 
 这条路径应该优先于下面的手工 Quick Start。
 
 ## ⚡ Quick Start
 
-默认推荐架构：VPS 上跑代理，本地通过 SSH 隧道访问。
+推荐默认架构：VPS 上运行代理，本地通过 SSH 隧道接入。
+
+### 架构图
+
+```mermaid
+flowchart TB
+  classDef local fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1px;
+  classDef gateway fill:#EFF6FF,stroke:#2563EB,color:#0F172A,stroke-width:1.5px;
+  classDef guard fill:#ECFDF5,stroke:#16A34A,color:#052E16,stroke-width:1px;
+  classDef upstream fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:1px;
+
+  subgraph LOCAL["本地机器"]
+    direction TB
+    CLI["LLM CLI<br/>Claude Code / Codex"]:::local
+    WRAP["codex-gateway-proxy<br/>注入 HTTP(S)_PROXY"]:::local
+    TUNNEL["SSH 隧道<br/>127.0.0.1:8080 -> VPS:127.0.0.1:8080"]:::local
+    CLI --> WRAP --> TUNNEL
+  end
+
+  subgraph VPS["VPS"]
+    direction TB
+    PROXY["codex-gateway<br/>HTTP Forward / HTTPS CONNECT"]:::gateway
+    POLICY["安全控制<br/>Basic Auth / 源 IP / 并发限制<br/>域名端口 allowlist / SSRF 防护"]:::guard
+    OBS["观测面<br/>JSON 审计日志 /healthz /metrics"]:::guard
+    PROXY --> POLICY
+    PROXY -.-> OBS
+  end
+
+  UPSTREAM["上游模型服务<br/>Anthropic / OpenAI / OpenRouter"]:::upstream
+
+  TUNNEL --> PROXY
+  POLICY --> UPSTREAM
+```
+
+推荐路径里，LLM CLI 只连接本地代理入口；真正的出网、鉴权、目标约束和审计都集中在 VPS 侧。
 
 ### 1. VPS 上部署服务端
 
@@ -29,13 +63,13 @@
 cp deploy/vps.example.yaml deploy/vps.yaml
 ```
 
-只改这几项：
+先改这几项：
 
 - `users[0].password`
 - 如果你不想用默认账号，再改 `users[0].username`
 - 如果要放行额外域名，再改 `runtime.dest_suffix_allowlist`
 
-默认示例已经包含常见模型域名：
+默认示例已经包含常见模型服务域名：
 
 - `.anthropic.com`
 - `.openai.com`
@@ -49,7 +83,7 @@ go run ./cmd/codex-gateway deploy vps
 systemctl --user status codex-gateway.service --no-pager
 ```
 
-这会生成 `.env`、`config/users.txt`、本地二进制，并安装 `systemd --user` 服务。
+这会生成 `.env`、`config/users.txt`、本地二进制，并安装对应的 `systemd --user` 服务。
 
 ### 2. 本地部署 client
 
@@ -57,11 +91,11 @@ systemctl --user status codex-gateway.service --no-pager
 cp deploy/client.example.yaml deploy/client.yaml
 ```
 
-只改这几项：
+先改这几项：
 
 - `ssh.user`
 - `ssh.host`
-- `proxy.password` 改成和服务端一样的密码
+- `proxy.password` 改成与服务端一致的密码
 - 如果你改了用户名，再把 `proxy.username` 一起改掉
 
 执行部署：
@@ -76,7 +110,7 @@ go run ./cmd/codex-gateway deploy client
 ~/.local/bin/codex-gateway-proxy codex
 ```
 
-如果只想生成文件、不立即 build / restart：
+如果只想生成文件，不立即 build / restart：
 
 ```bash
 go run ./cmd/codex-gateway deploy vps --write-only
