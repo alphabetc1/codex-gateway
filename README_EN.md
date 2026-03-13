@@ -21,7 +21,7 @@ Prefer this flow over the manual quick start below.
 
 ## ⚡ Quick Start
 
-Recommended default setup: run the proxy on a VPS and reach it locally through an SSH tunnel.
+Recommended default setup: run the proxy on a VPS, then keep the client side to two steps only: open an SSH tunnel and set proxy env vars.
 
 ### Architecture
 
@@ -57,7 +57,30 @@ systemctl --user status codex-gateway.service --no-pager
 
 This writes `.env`, `config/users.txt`, the local binary, and the matching `systemd --user` service.
 
-### 2. Deploy the client locally
+### 2. Preferred: minimal client setup
+
+First open a local tunnel to the VPS:
+
+```bash
+ssh -NT \
+  -L 127.0.0.1:8080:127.0.0.1:8080 \
+  <ssh.user>@<ssh.host>
+```
+
+Then set the proxy env vars in your current shell:
+
+```bash
+export HTTP_PROXY=http://<proxy.username>:<proxy.password>@127.0.0.1:8080
+export HTTPS_PROXY="$HTTP_PROXY"
+```
+
+### 3. Use it
+
+```bash
+codex
+```
+
+### 4. Deploy the client locally
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml
@@ -74,11 +97,6 @@ Run the deploy:
 
 ```bash
 go run ./cmd/codex-gateway deploy client
-```
-
-### 3. Use it
-
-```bash
 ~/.local/bin/codex-gateway-proxy codex
 ```
 

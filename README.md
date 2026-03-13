@@ -21,7 +21,7 @@
 
 ## ⚡ Quick Start
 
-推荐默认架构：VPS 上运行代理，本地通过 SSH 隧道接入。
+推荐默认架构：VPS 上运行代理，本地只做两件事：打通 SSH 隧道，设置代理环境变量。
 
 ### 架构图
 
@@ -57,7 +57,30 @@ systemctl --user status codex-gateway.service --no-pager
 
 这会生成 `.env`、`config/users.txt`、本地二进制，并安装对应的 `systemd --user` 服务。
 
-### 2. 本地部署 client
+### 2. 首选：最简 client 接入
+
+先打通到 VPS 的本地隧道：
+
+```bash
+ssh -NT \
+  -L 127.0.0.1:8080:127.0.0.1:8080 \
+  <ssh.user>@<ssh.host>
+```
+
+然后在当前 shell 里设置代理环境变量：
+
+```bash
+export HTTP_PROXY=http://<proxy.username>:<proxy.password>@127.0.0.1:8080
+export HTTPS_PROXY="$HTTP_PROXY"
+```
+
+### 3. 开始使用
+
+```bash
+codex
+```
+
+### 4. 本地部署 client
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml
@@ -74,11 +97,6 @@ cp deploy/client.example.yaml deploy/client.yaml
 
 ```bash
 go run ./cmd/codex-gateway deploy client
-```
-
-### 3. 开始使用
-
-```bash
 ~/.local/bin/codex-gateway-proxy codex
 ```
 
