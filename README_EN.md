@@ -25,45 +25,7 @@ Recommended default setup: run the proxy on a VPS and reach it locally through a
 
 ### Architecture
 
-```mermaid
-%%{init: {'flowchart': {'curve': 'basis'}} }%%
-flowchart LR
-  classDef local fill:#081120,stroke:#29D8FF,color:#E6FBFF,stroke-width:2px;
-  classDef gateway fill:#170B2C,stroke:#FF4FD8,color:#FFF1FF,stroke-width:2.5px;
-  classDef policy fill:#0A201B,stroke:#19F5B3,color:#E9FFF7,stroke-width:1.5px;
-  classDef obs fill:#221231,stroke:#B388FF,color:#F6EEFF,stroke-width:1.5px;
-  classDef upstream fill:#261500,stroke:#FFB84D,color:#FFF3D6,stroke-width:1.5px;
-  linkStyle default stroke:#6EE7F9,stroke-width:2px;
-
-  style LOCAL fill:#0B1020,stroke:#29D8FF,stroke-width:2px,color:#E6FBFF;
-  style VPS fill:#120A23,stroke:#FF4FD8,stroke-width:2px,color:#FFF1FF;
-  style CLOUD fill:#181005,stroke:#FFB84D,stroke-width:2px,color:#FFF3D6;
-
-  subgraph LOCAL["LOCAL // EDGE"]
-    direction TB
-    CLI["LLM CLI<br/>Claude Code / Codex"]:::local
-    WRAP["Proxy wrapper<br/>codex-gateway-proxy"]:::local
-    TUNNEL["SSH tunnel<br/>127.0.0.1:8080"]:::local
-    CLI --> WRAP --> TUNNEL
-  end
-
-  subgraph VPS["VPS // CONTROL GATE"]
-    direction TB
-    PROXY["codex-gateway<br/>HTTP Forward / HTTPS CONNECT"]:::gateway
-    POLICY["Policy gate<br/>Basic Auth / source IP<br/>Allowlists / SSRF / limits"]:::policy
-    OBS["Audit surface<br/>JSON logs /healthz /metrics"]:::obs
-    PROXY --> POLICY
-    PROXY -. audit .-> OBS
-  end
-
-  subgraph CLOUD["UPSTREAM // MODEL CLOUD"]
-    direction TB
-    UPSTREAM["Anthropic<br/>OpenAI<br/>OpenRouter"]:::upstream
-  end
-
-  TUNNEL -- encrypted hop --> PROXY
-  POLICY -- allowed egress --> UPSTREAM
-```
+![Codex Gateway architecture](./docs/architecture-cyberpunk-en.svg)
 
 In the recommended path, the LLM CLI only talks to a local proxy endpoint; egress, authentication, destination policy, and audit all stay on the VPS.
 

@@ -1,0 +1,199 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 960" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Gateway Architecture</title>
+  <desc id="desc">Cyberpunk-style architecture illustration for Codex Gateway: a local CLI reaches a VPS proxy over SSH, then the proxy accesses upstream model services.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#04050b"/>
+      <stop offset="45%" stop-color="#0b1022"/>
+      <stop offset="100%" stop-color="#1a0817"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#29d8ff"/>
+      <stop offset="50%" stop-color="#ff4fd8"/>
+      <stop offset="100%" stop-color="#ffb84d"/>
+    </linearGradient>
+    <linearGradient id="panelCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#091626"/>
+      <stop offset="100%" stop-color="#08111d"/>
+    </linearGradient>
+    <linearGradient id="panelPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#170b2b"/>
+      <stop offset="100%" stop-color="#0f091f"/>
+    </linearGradient>
+    <linearGradient id="panelAmber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#231303"/>
+      <stop offset="100%" stop-color="#181004"/>
+    </linearGradient>
+    <linearGradient id="nodeCyan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10263c"/>
+      <stop offset="100%" stop-color="#0a1728"/>
+    </linearGradient>
+    <linearGradient id="nodeGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0e2a23"/>
+      <stop offset="100%" stop-color="#081b17"/>
+    </linearGradient>
+    <linearGradient id="nodeViolet" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#28173f"/>
+      <stop offset="100%" stop-color="#171124"/>
+    </linearGradient>
+    <linearGradient id="nodeAmber" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3a2208"/>
+      <stop offset="100%" stop-color="#241606"/>
+    </linearGradient>
+    <radialGradient id="orbLeft" cx="0%" cy="20%" r="70%">
+      <stop offset="0%" stop-color="#29d8ff" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#29d8ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbMid" cx="50%" cy="0%" r="70%">
+      <stop offset="0%" stop-color="#ff4fd8" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ff4fd8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbRight" cx="100%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffb84d" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffb84d" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#79f7ff" stroke-opacity="0.12" stroke-width="1"/>
+    </pattern>
+    <pattern id="scan" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="transparent"/>
+      <rect y="0" width="8" height="1" fill="#ffffff" opacity="0.03"/>
+    </pattern>
+    <filter id="glowCyan" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#29d8ff" flood-opacity="0.7"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#29d8ff" flood-opacity="0.28"/>
+    </filter>
+    <filter id="glowPink" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#ff4fd8" flood-opacity="0.7"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="16" flood-color="#ff4fd8" flood-opacity="0.24"/>
+    </filter>
+    <filter id="glowAmber" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#ffb84d" flood-opacity="0.65"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#ffb84d" flood-opacity="0.22"/>
+    </filter>
+    <filter id="glowGreen" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#19f5b3" flood-opacity="0.7"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="15" flood-color="#19f5b3" flood-opacity="0.22"/>
+    </filter>
+    <marker id="arrowCyan" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto">
+      <path d="M 0 2 L 14 8 L 0 14 L 4 8 Z" fill="#6ee7f9"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto">
+      <path d="M 0 2 L 14 8 L 0 14 L 4 8 Z" fill="#ffb84d"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="960" fill="url(#bg)"/>
+  <rect width="1600" height="960" fill="url(#grid)"/>
+  <rect width="1600" height="960" fill="url(#scan)"/>
+  <rect width="1600" height="960" fill="url(#orbLeft)"/>
+  <rect width="1600" height="960" fill="url(#orbMid)"/>
+  <rect width="1600" height="960" fill="url(#orbRight)"/>
+
+  <path d="M 36 72 L 72 36 H 1528 L 1564 72 V 888 L 1528 924 H 72 L 36 888 Z" fill="none" stroke="url(#frame)" stroke-opacity="0.55" stroke-width="2"/>
+  <path d="M 80 112 H 280" stroke="#29d8ff" stroke-width="4" stroke-linecap="round" filter="url(#glowCyan)"/>
+  <path d="M 1320 112 H 1520" stroke="#ffb84d" stroke-width="4" stroke-linecap="round" filter="url(#glowAmber)"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="86" y="88" fill="#7aefff" font-size="14" letter-spacing="3">PROXY ARCHITECTURE / NEON OPS</text>
+    <text x="86" y="140" fill="#ffffff" font-size="44" font-weight="700" letter-spacing="2">CODEX GATEWAY</text>
+    <text x="86" y="176" fill="#9bdcf7" font-size="18">Centralize LLM CLI egress on your own VPS, then keep auth, policy, and audit under your control.</text>
+  </g>
+
+  <g transform="translate(70 210)">
+    <path d="M 0 28 L 28 0 H 382 L 410 28 V 586 L 382 614 H 28 L 0 586 Z" fill="url(#panelCyan)" stroke="#29d8ff" stroke-width="2" filter="url(#glowCyan)"/>
+    <path d="M 0 88 H 410" stroke="#29d8ff" stroke-opacity="0.35" stroke-width="1.5"/>
+    <text x="28" y="46" fill="#95f4ff" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">LOCAL // EDGE ENTRY</text>
+    <text x="28" y="72" fill="#dffcff" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Proxy-aware CLIs only see a local endpoint</text>
+
+    <rect x="28" y="124" width="354" height="118" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <text x="48" y="162" fill="#ffffff" font-size="24" font-weight="700">LLM CLI</text>
+    <text x="48" y="192" fill="#a9eaff" font-size="16">Claude Code / Codex / other proxy-capable terminal agents</text>
+    <text x="48" y="216" fill="#7bdfff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Talks only to local HTTP(S)_PROXY</text>
+
+    <path d="M 205 242 V 286" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
+
+    <rect x="28" y="286" width="354" height="116" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <text x="48" y="324" fill="#ffffff" font-size="24" font-weight="700">Proxy Wrapper</text>
+    <text x="48" y="354" fill="#a9eaff" font-size="16">`codex-gateway-proxy` injects `HTTP_PROXY` / `HTTPS_PROXY`</text>
+    <text x="48" y="378" fill="#7bdfff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">One local entrypoint, no remote topology in the CLI</text>
+
+    <path d="M 205 402 V 448" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
+
+    <rect x="28" y="448" width="354" height="118" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <text x="48" y="486" fill="#ffffff" font-size="24" font-weight="700">SSH Tunnel</text>
+    <text x="48" y="516" fill="#a9eaff" font-size="16">127.0.0.1:8080 -&gt; VPS:127.0.0.1:8080</text>
+    <text x="48" y="540" fill="#7bdfff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Encrypted hop, with no public proxy surface by default</text>
+  </g>
+
+  <g transform="translate(520 170)">
+    <path d="M 0 28 L 28 0 H 502 L 530 28 V 666 L 502 694 H 28 L 0 666 Z" fill="url(#panelPink)" stroke="#ff4fd8" stroke-width="2.2" filter="url(#glowPink)"/>
+    <path d="M 0 96 H 530" stroke="#ff4fd8" stroke-opacity="0.36" stroke-width="1.5"/>
+    <text x="30" y="46" fill="#ffbaf2" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">VPS // CONTROL CORE</text>
+    <text x="30" y="74" fill="#ffe2fb" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Real egress, auth, destination policy, and audit all converge here</text>
+
+    <rect x="30" y="126" width="470" height="136" rx="18" fill="#1b0f31" stroke="#ff7be6" stroke-width="1.8"/>
+    <text x="56" y="168" fill="#ffffff" font-size="28" font-weight="700">codex-gateway</text>
+    <text x="56" y="202" fill="#f4c6ff" font-size="18">HTTP Forward + HTTPS CONNECT</text>
+    <text x="56" y="228" fill="#d99df3" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">The single-binary proxy core for standard explicit proxy traffic</text>
+
+    <path d="M 264 262 V 318" stroke="#ff79e5" stroke-width="3" stroke-linecap="round" filter="url(#glowPink)"/>
+
+    <rect x="30" y="318" width="470" height="164" rx="18" fill="url(#nodeGreen)" stroke="#19f5b3" stroke-width="1.8"/>
+    <text x="56" y="358" fill="#ffffff" font-size="26" font-weight="700">Policy Gate</text>
+    <text x="56" y="390" fill="#b9fff0" font-size="17">Basic Auth / source IP allowlists / per-IP concurrency caps</text>
+    <text x="56" y="418" fill="#9ff9e4" font-size="17">Destination host / suffix / port allowlists</text>
+    <text x="56" y="446" fill="#7be9cf" font-size="17">Second-pass DNS checks that block private and reserved IPs by default</text>
+
+    <rect x="30" y="516" width="470" height="128" rx="18" fill="url(#nodeViolet)" stroke="#b388ff" stroke-width="1.7"/>
+    <text x="56" y="556" fill="#ffffff" font-size="26" font-weight="700">Audit Surface</text>
+    <text x="56" y="588" fill="#ead7ff" font-size="17">JSON audit logs /healthz /metrics</text>
+    <text x="56" y="614" fill="#ccb0ff" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Keep decision traces, failure categories, and runtime health on your side</text>
+  </g>
+
+  <g transform="translate(1120 210)">
+    <path d="M 0 28 L 28 0 H 382 L 410 28 V 586 L 382 614 H 28 L 0 586 Z" fill="url(#panelAmber)" stroke="#ffb84d" stroke-width="2" filter="url(#glowAmber)"/>
+    <path d="M 0 88 H 410" stroke="#ffb84d" stroke-opacity="0.35" stroke-width="1.5"/>
+    <text x="28" y="46" fill="#ffd699" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">UPSTREAM // MODEL CLOUD</text>
+    <text x="28" y="72" fill="#fff0d2" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Only allowed domains and ports are actually let through</text>
+
+    <rect x="28" y="132" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
+    <text x="48" y="170" fill="#ffffff" font-size="24" font-weight="700">Anthropic</text>
+    <text x="48" y="198" fill="#ffdca3" font-size="16">`.anthropic.com`</text>
+
+    <rect x="28" y="258" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
+    <text x="48" y="296" fill="#ffffff" font-size="24" font-weight="700">OpenAI</text>
+    <text x="48" y="324" fill="#ffdca3" font-size="16">`.openai.com` / `.chatgpt.com`</text>
+
+    <rect x="28" y="384" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
+    <text x="48" y="422" fill="#ffffff" font-size="24" font-weight="700">OpenRouter</text>
+    <text x="48" y="450" fill="#ffdca3" font-size="16">`.openrouter.ai`</text>
+
+    <rect x="28" y="510" width="354" height="56" rx="14" fill="#2b1908" stroke="#ffcf82" stroke-dasharray="6 8" stroke-width="1.4"/>
+    <text x="48" y="545" fill="#ffdfac" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Expand to more providers when needed, but keep the default egress tight</text>
+  </g>
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M 478 520 C 515 520, 520 520, 552 520" stroke="#6ee7f9" stroke-width="4" marker-end="url(#arrowCyan)" filter="url(#glowCyan)"/>
+    <path d="M 1052 520 C 1090 520, 1100 520, 1134 520" stroke="#ffb84d" stroke-width="4" marker-end="url(#arrowAmber)" filter="url(#glowAmber)"/>
+  </g>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">
+    <text x="606" y="498" fill="#9bf0ff" letter-spacing="1.5">ENCRYPTED HOP</text>
+    <text x="1166" y="498" fill="#ffd699" letter-spacing="1.5">ALLOWED EGRESS</text>
+  </g>
+
+  <g opacity="0.65">
+    <circle cx="504" cy="520" r="5" fill="#6ee7f9" filter="url(#glowCyan)"/>
+    <circle cx="1058" cy="520" r="5" fill="#ffb84d" filter="url(#glowAmber)"/>
+  </g>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="86" y="892" fill="#74d3f3" font-size="14" letter-spacing="2">LOCAL CLI</text>
+    <text x="244" y="892" fill="#74d3f3" font-size="14">-&gt;</text>
+    <text x="284" y="892" fill="#ff99ea" font-size="14" letter-spacing="2">VPS CONTROL GATE</text>
+    <text x="520" y="892" fill="#ff99ea" font-size="14">-&gt;</text>
+    <text x="560" y="892" fill="#ffd08c" font-size="14" letter-spacing="2">MODEL CLOUD</text>
+    <text x="1126" y="892" fill="#96f9dd" font-size="14">AUTH / POLICY / AUDIT STAY ON YOUR SIDE</text>
+  </g>
+</svg>
