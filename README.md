@@ -26,33 +26,43 @@
 ### 架构图
 
 ```mermaid
-flowchart TB
-  classDef local fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1px;
-  classDef gateway fill:#EFF6FF,stroke:#2563EB,color:#0F172A,stroke-width:1.5px;
-  classDef guard fill:#ECFDF5,stroke:#16A34A,color:#052E16,stroke-width:1px;
-  classDef upstream fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:1px;
+%%{init: {'flowchart': {'curve': 'basis'}} }%%
+flowchart LR
+  classDef local fill:#081120,stroke:#29D8FF,color:#E6FBFF,stroke-width:2px;
+  classDef gateway fill:#170B2C,stroke:#FF4FD8,color:#FFF1FF,stroke-width:2.5px;
+  classDef policy fill:#0A201B,stroke:#19F5B3,color:#E9FFF7,stroke-width:1.5px;
+  classDef obs fill:#221231,stroke:#B388FF,color:#F6EEFF,stroke-width:1.5px;
+  classDef upstream fill:#261500,stroke:#FFB84D,color:#FFF3D6,stroke-width:1.5px;
+  linkStyle default stroke:#6EE7F9,stroke-width:2px;
 
-  subgraph LOCAL["本地机器"]
+  style LOCAL fill:#0B1020,stroke:#29D8FF,stroke-width:2px,color:#E6FBFF;
+  style VPS fill:#120A23,stroke:#FF4FD8,stroke-width:2px,color:#FFF1FF;
+  style CLOUD fill:#181005,stroke:#FFB84D,stroke-width:2px,color:#FFF3D6;
+
+  subgraph LOCAL["LOCAL // 本地入口"]
     direction TB
     CLI["LLM CLI<br/>Claude Code / Codex"]:::local
-    WRAP["codex-gateway-proxy<br/>注入 HTTP(S)_PROXY"]:::local
-    TUNNEL["SSH 隧道<br/>127.0.0.1:8080 -> VPS:127.0.0.1:8080"]:::local
+    WRAP["Proxy wrapper<br/>codex-gateway-proxy"]:::local
+    TUNNEL["SSH tunnel<br/>127.0.0.1:8080"]:::local
     CLI --> WRAP --> TUNNEL
   end
 
-  subgraph VPS["VPS"]
+  subgraph VPS["VPS // 出口控制"]
     direction TB
     PROXY["codex-gateway<br/>HTTP Forward / HTTPS CONNECT"]:::gateway
-    POLICY["安全控制<br/>Basic Auth / 源 IP / 并发限制<br/>域名端口 allowlist / SSRF 防护"]:::guard
-    OBS["观测面<br/>JSON 审计日志 /healthz /metrics"]:::guard
+    POLICY["Policy gate<br/>Basic Auth / 源 IP<br/>Allowlist / SSRF / 限流"]:::policy
+    OBS["Audit surface<br/>JSON logs /healthz /metrics"]:::obs
     PROXY --> POLICY
-    PROXY -.-> OBS
+    PROXY -. audit .-> OBS
   end
 
-  UPSTREAM["上游模型服务<br/>Anthropic / OpenAI / OpenRouter"]:::upstream
+  subgraph CLOUD["UPSTREAM // 模型服务"]
+    direction TB
+    UPSTREAM["Anthropic<br/>OpenAI<br/>OpenRouter"]:::upstream
+  end
 
-  TUNNEL --> PROXY
-  POLICY --> UPSTREAM
+  TUNNEL -- encrypted hop --> PROXY
+  POLICY -- allowed egress --> UPSTREAM
 ```
 
 推荐路径里，LLM CLI 只连接本地代理入口；真正的出网、鉴权、目标约束和审计都集中在 VPS 侧。
