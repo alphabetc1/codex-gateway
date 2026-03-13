@@ -758,7 +758,7 @@ Mitigation:
 ## 23. Definition of Done
 
 The implementation is done when:
-- all P0 items in `prompt.md` are implemented
+- all P0 items in the original implementation brief are implemented
 - tests pass locally with `go test ./...`
 - Docker image builds
 - compose startup works with documented config

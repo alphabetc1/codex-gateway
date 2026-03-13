@@ -8,6 +8,17 @@
 
 </div>
 
+## 🤖 Preferred Flow
+
+If you are using an LLM / agent that can read files, edit files, and run terminal commands, the easiest path is not manual YAML editing:
+
+1. `git clone` this repo
+2. Send [SEND_THIS_TO_LLM.md](./SEND_THIS_TO_LLM.md) directly to the LLM
+3. Answer the small set of follow-up questions it asks
+4. Let it read the deploy examples, deploy the server on the current machine, and return the client-side config you need
+
+Prefer this flow over the manual quick start below.
+
 ## ⚡ Quick Start
 
 Recommended default setup: run the proxy on a VPS, then reach it locally through an SSH tunnel.
