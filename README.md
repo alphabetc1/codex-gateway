@@ -12,6 +12,18 @@
 
 推荐架构：代理跑在 VPS，client 只连本地入口；出网、鉴权、目标限制和审计都留在 VPS。
 
+### 适合这种场景
+
+- 只想让 `codex`、`claude code` 这类命令走代理，不影响机器上的其他程序
+- 想把模型访问统一收口到自己的 VPS，并加上白名单和审计
+- 想保留 SSH 隧道接入，但比普通 SSH / SOCKS 多一层出口控制
+
+### 不适合这种场景
+
+- 只想要通用代理，普通 SSH / SOCKS 通常就够了
+- 需要厂商 API 兼容层、协议转换或 HTTPS MITM
+- 需要服务端集群、共享状态或负载均衡
+
 ### 推荐：🤖 让 LLM 代你部署
 
 1. `git clone` 这个仓库
@@ -37,6 +49,13 @@ cp deploy/vps.example.yaml deploy/vps.yaml
 - 不想用默认账号，再改 `users[0].username`
 - 要放行额外域名，再改 `runtime.dest_suffix_allowlist`
 
+示例已经包含常见模型服务域名：
+
+- `.anthropic.com`
+- `.openai.com`
+- `.openrouter.ai`
+- `.chatgpt.com`
+
 执行部署：
 
 ```bash
@@ -52,7 +71,7 @@ systemctl --user status codex-gateway.service --no-pager
 
 两种方式都可以。区别在于：手动管理本地 tunnel 和代理环境变量，还是生成本地脚本。
 
-如果你要接多台 VPS，可在 `deploy/client.yaml` 里使用 `endpoints` 定义多个入口。`deploy client` 会为每个入口生成一个 tunnel service，wrapper 默认选首个可用入口，也支持 `--endpoint <name>` 或 `CODEX_GATEWAY_ENDPOINT=<name>` 指定。
+如果你要接多台 VPS，可在 `deploy/client.yaml` 里配置 `endpoints`。它会为每个入口生成独立 tunnel service；wrapper 默认选首个可用入口，也支持 `--endpoint <name>` 或 `CODEX_GATEWAY_ENDPOINT=<name>` 指定。这是 client 侧 failover，不是服务端集群。
 
 #### 方式 A：手动打通 tunnel 并设置代理环境变量
 
@@ -118,6 +137,7 @@ go run ./cmd/codex-gateway deploy client --write-only
 - 出口约束：目标 host / suffix / port allowlist
 - SSRF 防护：DNS 解析后二次校验，默认拒绝私网和保留地址
 - 可观测性：JSON 日志、`/healthz`、可选 `/metrics`
+- 多入口接入：client 侧多 VPS failover，可按入口切换
 - 部署友好：单二进制、Docker、Compose、YAML 一键部署
 
 ## 🔍 和普通 SSH / SOCKS 代理有什么不同

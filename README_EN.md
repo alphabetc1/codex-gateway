@@ -23,6 +23,18 @@ If you already plan to use an agent for setup, this is usually simpler than the 
 
 Recommended setup: run the proxy on a VPS and expose one local entrypoint on the client; keep egress, auth, destination policy, and audit on the VPS.
 
+### Good Fit
+
+- You want only `codex`, `claude code`, or similar commands to use the proxy
+- You want model traffic to exit through your own VPS with allowlists and audit
+- You still want SSH-tunnel-style access, but with more egress control than plain SSH / SOCKS
+
+### Not A Good Fit
+
+- You only need a generic proxy; plain SSH / SOCKS is usually enough
+- You need a vendor API compatibility layer, protocol translation, or HTTPS MITM
+- You need a server-side cluster, shared state, or load balancing
+
 ### Architecture
 
 ![Codex Gateway architecture](./docs/architecture-cyberpunk-en.svg)
@@ -63,7 +75,7 @@ This writes `.env`, `config/users.txt`, the binary, and the matching `systemd` s
 
 Both modes work. The difference is whether you manage the local tunnel and proxy env vars yourself or generate local helper files.
 
-If you want multiple VPS backends, use `endpoints` in `deploy/client.yaml`. `deploy client` will generate one tunnel service per endpoint, and the wrapper will pick the first reachable one by default or let you force one with `--endpoint <name>` or `CODEX_GATEWAY_ENDPOINT=<name>`.
+For multiple VPS backends, set `endpoints` in `deploy/client.yaml`. This generates one tunnel service per endpoint; the wrapper picks the first reachable one by default, or you can force one with `--endpoint <name>` or `CODEX_GATEWAY_ENDPOINT=<name>`. This is client-side failover, not a server cluster.
 
 #### Mode A: Open The Tunnel And Set Proxy Env Vars Manually
 
@@ -129,6 +141,7 @@ Start according to your mode:
 - Egress control: destination host / suffix / port allowlists
 - SSRF protection: re-checks DNS results and blocks private or reserved IPs by default
 - Observability: JSON logs, `/healthz`, optional `/metrics`
+- Multi-endpoint access: client-side multi-VPS failover with endpoint selection
 - Simple deployment: single binary, Docker, Compose, and YAML-based one-click deploy
 
 ## 🔍 What This Adds Beyond A Plain SSH / SOCKS Proxy
