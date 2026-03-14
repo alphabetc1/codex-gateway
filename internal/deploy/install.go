@@ -15,9 +15,11 @@ type VPSInstallResult struct {
 }
 
 type ClientInstallResult struct {
-	EnvPath     string
-	WrapperPath string
-	ServicePath string
+	EnvPath      string
+	EnvPaths     []string
+	WrapperPath  string
+	ServicePath  string
+	ServicePaths []string
 }
 
 func InstallVPS(spec VPSConfig) (VPSInstallResult, error) {
@@ -85,12 +87,13 @@ func InstallVPS(spec VPSConfig) (VPSInstallResult, error) {
 }
 
 func InstallClient(spec ClientConfig) (ClientInstallResult, error) {
+	endpoints := clientEndpoints(spec)
 	envPath := filepath.Join(spec.InstallDir, "proxy.env")
 	wrapperPath, err := clientWrapperPath(spec.WrapperName)
 	if err != nil {
 		return ClientInstallResult{}, err
 	}
-	serviceInstall, err := newSystemdInstall(spec.ServiceScope, spec.ServiceName)
+	serviceInstall, err := newSystemdInstall(spec.ServiceScope, clientServiceName(spec, endpoints[0]))
 	if err != nil {
 		return ClientInstallResult{}, err
 	}
@@ -108,29 +111,65 @@ func InstallClient(spec ClientConfig) (ClientInstallResult, error) {
 		return ClientInstallResult{}, fmt.Errorf("mkdir service dir: %w", err)
 	}
 
-	if err := os.WriteFile(envPath, RenderClientEnv(spec), 0o600); err != nil {
-		return ClientInstallResult{}, fmt.Errorf("write client env: %w", err)
+	envPaths := make([]string, 0, len(endpoints))
+	servicePaths := make([]string, 0, len(endpoints))
+	wrapperEndpoints := make([]clientWrapperEndpoint, 0, len(endpoints))
+	for index, endpoint := range endpoints {
+		endpointEnvPath := envPath
+		if len(endpoints) > 1 {
+			endpointEnvPath = filepath.Join(spec.InstallDir, "proxy-"+endpoint.Name+".env")
+		}
+		if err := os.WriteFile(endpointEnvPath, RenderClientEnvForEndpoint(spec.Proxy, endpoint), 0o600); err != nil {
+			return ClientInstallResult{}, fmt.Errorf("write client env for %s: %w", endpoint.Name, err)
+		}
+		if len(endpoints) > 1 && index == 0 {
+			if err := os.WriteFile(envPath, RenderClientEnvForEndpoint(spec.Proxy, endpoint), 0o600); err != nil {
+				return ClientInstallResult{}, fmt.Errorf("write default client env: %w", err)
+			}
+		}
+		envPaths = append(envPaths, endpointEnvPath)
+		wrapperEndpoints = append(wrapperEndpoints, clientWrapperEndpoint{
+			Name:      endpoint.Name,
+			EnvPath:   endpointEnvPath,
+			LocalHost: endpoint.Tunnel.LocalHost,
+			LocalPort: endpoint.Tunnel.LocalPort,
+		})
+
+		endpointServiceName := clientServiceName(spec, endpoint)
+		endpointServiceInstall, err := newSystemdInstall(spec.ServiceScope, endpointServiceName)
+		if err != nil {
+			return ClientInstallResult{}, err
+		}
+		if err := os.MkdirAll(filepath.Dir(endpointServiceInstall.servicePath), 0o755); err != nil {
+			return ClientInstallResult{}, fmt.Errorf("mkdir service dir for %s: %w", endpoint.Name, err)
+		}
+		if err := os.WriteFile(endpointServiceInstall.servicePath, RenderClientServiceForEndpoint(spec, endpoint), 0o644); err != nil {
+			return ClientInstallResult{}, fmt.Errorf("write service for %s: %w", endpoint.Name, err)
+		}
+		servicePaths = append(servicePaths, endpointServiceInstall.servicePath)
 	}
-	if err := os.WriteFile(wrapperPath, RenderClientWrapper(spec, envPath), 0o755); err != nil {
+	if err := os.WriteFile(wrapperPath, RenderClientWrapperForEndpoints(spec, wrapperEndpoints), 0o755); err != nil {
 		return ClientInstallResult{}, fmt.Errorf("write wrapper: %w", err)
-	}
-	if err := os.WriteFile(serviceInstall.servicePath, RenderClientService(spec), 0o644); err != nil {
-		return ClientInstallResult{}, fmt.Errorf("write service: %w", err)
 	}
 
 	if !spec.WriteOnly {
 		if err := runCommand("systemctl", serviceInstall.systemctlArgs("daemon-reload")...); err != nil {
 			return ClientInstallResult{}, err
 		}
-		if err := runCommand("systemctl", serviceInstall.systemctlArgs("enable", "--now", spec.ServiceName+".service")...); err != nil {
-			return ClientInstallResult{}, err
+		for _, endpoint := range endpoints {
+			endpointServiceName := clientServiceName(spec, endpoint)
+			if err := runCommand("systemctl", serviceInstall.systemctlArgs("enable", "--now", endpointServiceName+".service")...); err != nil {
+				return ClientInstallResult{}, err
+			}
 		}
 	}
 
 	return ClientInstallResult{
-		EnvPath:     envPath,
-		WrapperPath: wrapperPath,
-		ServicePath: serviceInstall.servicePath,
+		EnvPath:      envPath,
+		EnvPaths:     envPaths,
+		WrapperPath:  wrapperPath,
+		ServicePath:  servicePaths[0],
+		ServicePaths: servicePaths,
 	}, nil
 }
 

@@ -63,6 +63,8 @@ This writes `.env`, `config/users.txt`, the binary, and the matching `systemd` s
 
 Both modes work. The difference is whether you manage the local tunnel and proxy env vars yourself or generate local helper files.
 
+If you want multiple VPS backends, use `endpoints` in `deploy/client.yaml`. `deploy client` will generate one tunnel service per endpoint, and the wrapper will pick the first reachable one by default or let you force one with `--endpoint <name>` or `CODEX_GATEWAY_ENDPOINT=<name>`.
+
 #### Mode A: Open The Tunnel And Set Proxy Env Vars Manually
 
 First open a local tunnel to the VPS:
@@ -118,6 +120,7 @@ Start according to your mode:
 
 - Mode A: run `codex` directly from the shell where the proxy env vars are set
 - Mode B: run it through the local wrapper with `~/.local/bin/codex-gateway-proxy codex`
+- Multi-endpoint select: `~/.local/bin/codex-gateway-proxy --endpoint backup codex`
 
 ## ✨ Core Features
 

@@ -27,3 +27,18 @@ proxy:
     - localhost
     - 127.0.0.1
     - ::1
+
+# Optional: define multiple VPS endpoints for client-side failover.
+# Each endpoint needs a unique local tunnel port.
+#
+# endpoints:
+#   - name: primary
+#     ssh:
+#       host: vps-1.example.com
+#     tunnel:
+#       local_port: 8080
+#   - name: backup
+#     ssh:
+#       host: vps-2.example.com
+#     tunnel:
+#       local_port: 8081

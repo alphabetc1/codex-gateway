@@ -85,8 +85,21 @@ func runClient(args []string, stdout io.Writer, stderr io.Writer) error {
 	}
 
 	_, _ = fmt.Fprintf(stdout, "Client deployment complete\n")
-	_, _ = fmt.Fprintf(stdout, "  tunnel service: %s\n", result.ServicePath)
-	_, _ = fmt.Fprintf(stdout, "  env file: %s\n", result.EnvPath)
+	if len(result.ServicePaths) > 1 {
+		for index, servicePath := range result.ServicePaths {
+			_, _ = fmt.Fprintf(stdout, "  tunnel service %d: %s\n", index+1, servicePath)
+		}
+	} else {
+		_, _ = fmt.Fprintf(stdout, "  tunnel service: %s\n", result.ServicePath)
+	}
+	if len(result.EnvPaths) > 1 {
+		_, _ = fmt.Fprintf(stdout, "  default env file: %s\n", result.EnvPath)
+		for index, envPath := range result.EnvPaths {
+			_, _ = fmt.Fprintf(stdout, "  endpoint env %d: %s\n", index+1, envPath)
+		}
+	} else {
+		_, _ = fmt.Fprintf(stdout, "  env file: %s\n", result.EnvPath)
+	}
 	_, _ = fmt.Fprintf(stdout, "  wrapper: %s\n", result.WrapperPath)
 	return nil
 }

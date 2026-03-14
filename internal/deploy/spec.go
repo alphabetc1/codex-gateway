@@ -2,8 +2,10 @@ package deploy
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -57,14 +59,21 @@ type VPSRuntime struct {
 }
 
 type ClientConfig struct {
-	InstallDir  string       `yaml:"install_dir"`
-	ServiceName string       `yaml:"service_name"`
-	WrapperName string       `yaml:"wrapper_name"`
-	ServiceScope string      `yaml:"service_scope"`
-	WriteOnly   bool         `yaml:"write_only"`
-	SSH         ClientSSH    `yaml:"ssh"`
-	Tunnel      ClientTunnel `yaml:"tunnel"`
-	Proxy       ClientProxy  `yaml:"proxy"`
+	InstallDir   string           `yaml:"install_dir"`
+	ServiceName  string           `yaml:"service_name"`
+	WrapperName  string           `yaml:"wrapper_name"`
+	ServiceScope string           `yaml:"service_scope"`
+	WriteOnly    bool             `yaml:"write_only"`
+	SSH          ClientSSH        `yaml:"ssh"`
+	Tunnel       ClientTunnel     `yaml:"tunnel"`
+	Endpoints    []ClientEndpoint `yaml:"endpoints"`
+	Proxy        ClientProxy      `yaml:"proxy"`
+}
+
+type ClientEndpoint struct {
+	Name   string       `yaml:"name"`
+	SSH    ClientSSH    `yaml:"ssh"`
+	Tunnel ClientTunnel `yaml:"tunnel"`
 }
 
 type ClientSSH struct {
@@ -241,32 +250,6 @@ func normalizeClientConfig(spec ClientConfig) (ClientConfig, error) {
 		return ClientConfig{}, err
 	}
 
-	if strings.TrimSpace(spec.SSH.User) == "" || strings.TrimSpace(spec.SSH.Host) == "" {
-		return ClientConfig{}, fmt.Errorf("ssh.user and ssh.host are required")
-	}
-	if spec.SSH.Port == 0 {
-		spec.SSH.Port = 22
-	}
-	if spec.SSH.ServerAliveInterval == 0 {
-		spec.SSH.ServerAliveInterval = 60
-	}
-	if spec.SSH.ServerAliveCountMax == 0 {
-		spec.SSH.ServerAliveCountMax = 3
-	}
-
-	if spec.Tunnel.LocalHost == "" {
-		spec.Tunnel.LocalHost = "127.0.0.1"
-	}
-	if spec.Tunnel.LocalPort == 0 {
-		spec.Tunnel.LocalPort = 8080
-	}
-	if spec.Tunnel.RemoteHost == "" {
-		spec.Tunnel.RemoteHost = "127.0.0.1"
-	}
-	if spec.Tunnel.RemotePort == 0 {
-		spec.Tunnel.RemotePort = 8080
-	}
-
 	if strings.TrimSpace(spec.Proxy.Username) == "" || strings.TrimSpace(spec.Proxy.Password) == "" {
 		return ClientConfig{}, fmt.Errorf("proxy.username and proxy.password are required")
 	}
@@ -274,5 +257,196 @@ func normalizeClientConfig(spec ClientConfig) (ClientConfig, error) {
 		spec.Proxy.NoProxy = []string{"localhost", "127.0.0.1", "::1"}
 	}
 
+	endpoints, err := normalizeClientEndpoints(spec)
+	if err != nil {
+		return ClientConfig{}, err
+	}
+	spec.Endpoints = endpoints
+	spec.SSH = endpoints[0].SSH
+	spec.Tunnel = endpoints[0].Tunnel
+
 	return spec, nil
+}
+
+func normalizeClientEndpoints(spec ClientConfig) ([]ClientEndpoint, error) {
+	baseSSH := spec.SSH
+	baseTunnel := spec.Tunnel
+	baseLocalPort := baseTunnel.LocalPort
+	if baseLocalPort == 0 {
+		baseLocalPort = 8080
+	}
+
+	if len(spec.Endpoints) == 0 {
+		ssh, err := normalizeClientSSH(baseSSH)
+		if err != nil {
+			return nil, err
+		}
+		tunnel, err := normalizeClientTunnel(baseTunnel, baseLocalPort)
+		if err != nil {
+			return nil, err
+		}
+		return []ClientEndpoint{{
+			Name:   "primary",
+			SSH:    ssh,
+			Tunnel: tunnel,
+		}}, nil
+	}
+
+	seenNames := make(map[string]struct{}, len(spec.Endpoints))
+	seenBindAddrs := make(map[string]struct{}, len(spec.Endpoints))
+	endpoints := make([]ClientEndpoint, 0, len(spec.Endpoints))
+	for index, raw := range spec.Endpoints {
+		name, err := normalizeClientEndpointName(raw.Name, index)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := seenNames[name]; exists {
+			return nil, fmt.Errorf("duplicate endpoint name %q", name)
+		}
+		seenNames[name] = struct{}{}
+
+		ssh, err := normalizeClientSSH(mergeClientSSH(baseSSH, raw.SSH))
+		if err != nil {
+			return nil, fmt.Errorf("endpoint %q ssh: %w", name, err)
+		}
+
+		tunnel := mergeClientTunnel(baseTunnel, raw.Tunnel)
+		if tunnel.LocalPort == 0 {
+			tunnel.LocalPort = baseLocalPort + index
+		}
+		tunnel, err = normalizeClientTunnel(tunnel, tunnel.LocalPort)
+		if err != nil {
+			return nil, fmt.Errorf("endpoint %q tunnel: %w", name, err)
+		}
+
+		bindAddr := net.JoinHostPort(tunnel.LocalHost, strconv.Itoa(tunnel.LocalPort))
+		if _, exists := seenBindAddrs[bindAddr]; exists {
+			return nil, fmt.Errorf("endpoint %q local bind %s conflicts with another endpoint", name, bindAddr)
+		}
+		seenBindAddrs[bindAddr] = struct{}{}
+
+		endpoints = append(endpoints, ClientEndpoint{
+			Name:   name,
+			SSH:    ssh,
+			Tunnel: tunnel,
+		})
+	}
+
+	return endpoints, nil
+}
+
+func normalizeClientSSH(ssh ClientSSH) (ClientSSH, error) {
+	if strings.TrimSpace(ssh.User) == "" || strings.TrimSpace(ssh.Host) == "" {
+		return ClientSSH{}, fmt.Errorf("ssh.user and ssh.host are required")
+	}
+	if ssh.Port == 0 {
+		ssh.Port = 22
+	}
+	if ssh.ServerAliveInterval == 0 {
+		ssh.ServerAliveInterval = 60
+	}
+	if ssh.ServerAliveCountMax == 0 {
+		ssh.ServerAliveCountMax = 3
+	}
+	return ssh, nil
+}
+
+func normalizeClientTunnel(tunnel ClientTunnel, defaultLocalPort int) (ClientTunnel, error) {
+	if strings.TrimSpace(tunnel.LocalHost) == "" {
+		tunnel.LocalHost = "127.0.0.1"
+	}
+	if tunnel.LocalPort == 0 {
+		tunnel.LocalPort = defaultLocalPort
+	}
+	if strings.TrimSpace(tunnel.RemoteHost) == "" {
+		tunnel.RemoteHost = "127.0.0.1"
+	}
+	if tunnel.RemotePort == 0 {
+		tunnel.RemotePort = 8080
+	}
+	if tunnel.LocalPort <= 0 || tunnel.LocalPort > 65535 {
+		return ClientTunnel{}, fmt.Errorf("local_port must be between 1 and 65535")
+	}
+	if tunnel.RemotePort <= 0 || tunnel.RemotePort > 65535 {
+		return ClientTunnel{}, fmt.Errorf("remote_port must be between 1 and 65535")
+	}
+	return tunnel, nil
+}
+
+func mergeClientSSH(base, override ClientSSH) ClientSSH {
+	merged := base
+	if strings.TrimSpace(override.User) != "" {
+		merged.User = override.User
+	}
+	if strings.TrimSpace(override.Host) != "" {
+		merged.Host = override.Host
+	}
+	if override.Port != 0 {
+		merged.Port = override.Port
+	}
+	if strings.TrimSpace(override.IdentityFile) != "" {
+		merged.IdentityFile = override.IdentityFile
+	}
+	if override.ServerAliveInterval != 0 {
+		merged.ServerAliveInterval = override.ServerAliveInterval
+	}
+	if override.ServerAliveCountMax != 0 {
+		merged.ServerAliveCountMax = override.ServerAliveCountMax
+	}
+	if len(override.ExtraArgs) > 0 {
+		merged.ExtraArgs = append([]string(nil), override.ExtraArgs...)
+	}
+	return merged
+}
+
+func mergeClientTunnel(base, override ClientTunnel) ClientTunnel {
+	merged := base
+	if strings.TrimSpace(override.LocalHost) != "" {
+		merged.LocalHost = override.LocalHost
+	}
+	if override.LocalPort != 0 {
+		merged.LocalPort = override.LocalPort
+	}
+	if strings.TrimSpace(override.RemoteHost) != "" {
+		merged.RemoteHost = override.RemoteHost
+	}
+	if override.RemotePort != 0 {
+		merged.RemotePort = override.RemotePort
+	}
+	return merged
+}
+
+func normalizeClientEndpointName(raw string, index int) (string, error) {
+	value := strings.TrimSpace(strings.ToLower(raw))
+	if value == "" {
+		if index == 0 {
+			value = "primary"
+		} else {
+			value = fmt.Sprintf("endpoint-%d", index+1)
+		}
+	}
+
+	var builder strings.Builder
+	lastHyphen := false
+	for _, ch := range value {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+			builder.WriteRune(ch)
+			lastHyphen = false
+			continue
+		}
+		if ch == '-' || ch == '_' || ch == ' ' {
+			if !lastHyphen && builder.Len() > 0 {
+				builder.WriteByte('-')
+				lastHyphen = true
+			}
+			continue
+		}
+		return "", fmt.Errorf("endpoint name %q contains unsupported character %q", raw, string(ch))
+	}
+
+	name := strings.Trim(builder.String(), "-")
+	if name == "" {
+		return "", fmt.Errorf("endpoint name %q is empty after normalization", raw)
+	}
+	return name, nil
 }

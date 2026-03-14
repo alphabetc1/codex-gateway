@@ -200,3 +200,95 @@ func TestClientWrapperScopesProxyEnvToCommand(t *testing.T) {
 		t.Fatalf("wrapped env = %q", got)
 	}
 }
+
+func TestNormalizeClientConfigWithMultipleEndpoints(t *testing.T) {
+	spec := ClientConfig{
+		InstallDir:  "/home/test/.config/codex-gateway",
+		ServiceName: "codex-gateway-tunnel",
+		WrapperName: "codex-gateway-proxy",
+		SSH: ClientSSH{
+			User:         "admin",
+			IdentityFile: "/home/test/.ssh/id_ed25519",
+		},
+		Tunnel: ClientTunnel{
+			LocalHost:  "127.0.0.1",
+			LocalPort:  8080,
+			RemoteHost: "127.0.0.1",
+			RemotePort: 8080,
+		},
+		Endpoints: []ClientEndpoint{
+			{
+				Name: "east",
+				SSH: ClientSSH{
+					Host: "east.example.com",
+				},
+			},
+			{
+				Name: "west",
+				SSH: ClientSSH{
+					Host: "west.example.com",
+				},
+			},
+		},
+		Proxy: ClientProxy{
+			Username: "alice",
+			Password: "secret",
+		},
+	}
+
+	normalized, err := normalizeClientConfig(spec)
+	if err != nil {
+		t.Fatalf("normalizeClientConfig() error = %v", err)
+	}
+	if len(normalized.Endpoints) != 2 {
+		t.Fatalf("len(normalized.Endpoints) = %d, want %d", len(normalized.Endpoints), 2)
+	}
+	if normalized.Endpoints[0].SSH.User != "admin" || normalized.Endpoints[0].SSH.Host != "east.example.com" {
+		t.Fatalf("first endpoint ssh = %#v", normalized.Endpoints[0].SSH)
+	}
+	if normalized.Endpoints[0].Tunnel.LocalPort != 8080 {
+		t.Fatalf("first endpoint local port = %d, want %d", normalized.Endpoints[0].Tunnel.LocalPort, 8080)
+	}
+	if normalized.Endpoints[1].Tunnel.LocalPort != 8081 {
+		t.Fatalf("second endpoint local port = %d, want %d", normalized.Endpoints[1].Tunnel.LocalPort, 8081)
+	}
+	if normalized.Endpoints[1].SSH.IdentityFile != "/home/test/.ssh/id_ed25519" {
+		t.Fatalf("second endpoint identity file = %q", normalized.Endpoints[1].SSH.IdentityFile)
+	}
+}
+
+func TestMultiEndpointWrapperSelectsNamedEndpoint(t *testing.T) {
+	if _, err := os.Stat("/bin/sh"); err != nil {
+		t.Skip("/bin/sh is required for wrapper smoke test")
+	}
+
+	tempDir := t.TempDir()
+	primaryEnv := filepath.Join(tempDir, "proxy-primary.env")
+	backupEnv := filepath.Join(tempDir, "proxy-backup.env")
+	if err := os.WriteFile(primaryEnv, []byte("export HTTP_PROXY='http://primary'\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(primary env) error = %v", err)
+	}
+	if err := os.WriteFile(backupEnv, []byte("export HTTP_PROXY='http://backup'\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(backup env) error = %v", err)
+	}
+
+	spec := ClientConfig{WrapperName: "codex-gateway-proxy"}
+	wrapperPath := filepath.Join(tempDir, "codex-gateway-proxy")
+	wrapper := RenderClientWrapperForEndpoints(spec, []clientWrapperEndpoint{
+		{Name: "primary", EnvPath: primaryEnv, LocalHost: "127.0.0.1", LocalPort: 8080},
+		{Name: "backup", EnvPath: backupEnv, LocalHost: "127.0.0.1", LocalPort: 8081},
+	})
+	if err := os.WriteFile(wrapperPath, wrapper, 0o755); err != nil {
+		t.Fatalf("WriteFile(wrapper) error = %v", err)
+	}
+
+	command := exec.Command(wrapperPath, "--endpoint", "backup", "/bin/sh", "-c", `printf '%s|%s' "$CODEX_GATEWAY_ACTIVE_ENDPOINT" "$HTTP_PROXY"`)
+	command.Env = []string{"PATH=/usr/bin:/bin"}
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("wrapped command error = %v", err)
+	}
+	if got := string(output); got != "backup|http://backup" {
+		t.Fatalf("wrapped output = %q", got)
+	}
+}

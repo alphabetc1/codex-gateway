@@ -52,6 +52,8 @@ systemctl --user status codex-gateway.service --no-pager
 
 两种方式都可以。区别在于：手动管理本地 tunnel 和代理环境变量，还是生成本地脚本。
 
+如果你要接多台 VPS，可在 `deploy/client.yaml` 里使用 `endpoints` 定义多个入口。`deploy client` 会为每个入口生成一个 tunnel service，wrapper 默认选首个可用入口，也支持 `--endpoint <name>` 或 `CODEX_GATEWAY_ENDPOINT=<name>` 指定。
+
 #### 方式 A：手动打通 tunnel 并设置代理环境变量
 
 先打通到 VPS 的本地隧道：
@@ -107,6 +109,7 @@ go run ./cmd/codex-gateway deploy client --write-only
 
 - 方式 A：在已经设置代理环境变量的 shell 里直接运行 `codex`
 - 方式 B：通过本地 wrapper 启动 `~/.local/bin/codex-gateway-proxy codex`
+- 多入口指定：`~/.local/bin/codex-gateway-proxy --endpoint backup codex`
 
 ## ✨ 核心特性
 
