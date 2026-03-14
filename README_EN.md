@@ -2,7 +2,7 @@
 
 # Codex Gateway
 
-🚪 A lightweight explicit proxy for Claude Code, Codex, and other proxy-capable LLM CLIs. Run it on your own VPS and keep egress centralized under simple, practical control with Basic Auth, destination allowlists, and audit logs.
+🚪 A lightweight explicit proxy for Codex, Claude Code, and other proxy-capable LLM CLIs. Centralize egress on your VPS and control it with Basic Auth, destination allowlists, and audit logs.
 
 [简体中文](./README.md)
 
@@ -10,24 +10,24 @@
 
 ## 🤖 Let An LLM Deploy It
 
-If you are using an LLM / agent that can read files, edit files, and run terminal commands, the easiest path is to skip manual YAML editing:
+If your LLM / agent can read files, edit files, and run commands, the shortest path is to skip manual YAML editing:
 
 1. `git clone` this repo
 2. Send [SEND_THIS_TO_LLM.md](./SEND_THIS_TO_LLM.md) directly to the LLM
 3. Answer the small set of follow-up questions it asks
-4. Let it read the deploy examples, finish the server deployment on the current machine, and return the client-side config you need
+4. Let it read the deploy examples, complete the server deployment on the current machine, and return the client-side config
 
-If you already want an agent to carry out the deployment, this path is usually simpler than the manual quick start below.
+If you already plan to use an agent for setup, this is usually simpler than the manual quick start below.
 
 ## ⚡ Quick Start
 
-Recommended default setup: run the proxy on a VPS, then let the client connect through one local entrypoint while egress, auth, destination policy, and audit stay on the VPS.
+Recommended setup: run the proxy on a VPS and expose one local entrypoint on the client; keep egress, auth, destination policy, and audit on the VPS.
 
 ### Architecture
 
 ![Codex Gateway architecture](./docs/architecture-cyberpunk-en.svg)
 
-Both client-side entry modes use the same topology: the LLM CLI only talks to a local proxy endpoint, and the VPS handles the actual proxying and controls.
+Both client-side modes share the same topology: the LLM CLI talks only to a local proxy endpoint, and the VPS handles forwarding and policy.
 
 ### 1. Deploy the server on the VPS
 
@@ -35,13 +35,13 @@ Both client-side entry modes use the same topology: the LLM CLI only talks to a 
 cp deploy/vps.example.yaml deploy/vps.yaml
 ```
 
-Start with these fields:
+Start with:
 
 - `users[0].password`
 - If you do not want the default username, also change `users[0].username`
-- If you need extra destinations, extend `runtime.dest_suffix_allowlist`
+- If you need more destinations, extend `runtime.dest_suffix_allowlist`
 
-The default sample already includes the common model service domains:
+The sample already includes common model service domains:
 
 - `.anthropic.com`
 - `.openai.com`
@@ -55,11 +55,11 @@ go run ./cmd/codex-gateway deploy vps
 systemctl --user status codex-gateway.service --no-pager
 ```
 
-This writes `.env`, `config/users.txt`, the local binary, and the matching `systemd --user` service.
+This writes `.env`, `config/users.txt`, the binary, and the matching `systemd --user` service.
 
 ### 2. Choose One Client-Side Entry Mode
 
-Both modes work. The difference is whether you manage the local tunnel and proxy env vars yourself, or generate local helper scripts for them.
+Both modes work. The difference is whether you manage the local tunnel and proxy env vars yourself or generate local helper files.
 
 #### Mode A: Open The Tunnel And Set Proxy Env Vars Manually
 
@@ -71,29 +71,29 @@ ssh -NT \
   <ssh.user>@<ssh.host>
 ```
 
-Then set the proxy env vars in your current shell:
+Then set the proxy env vars in that shell:
 
 ```bash
 export HTTP_PROXY=http://<proxy.username>:<proxy.password>@127.0.0.1:8080
 export HTTPS_PROXY="$HTTP_PROXY"
 ```
 
-With this mode, start the client directly from that shell; you do not need to run `deploy client`.
+With this mode, run the client from that shell; `deploy client` is not needed.
 
 #### Mode B: Generate A Local Tunnel + Wrapper
 
-Use this path if you want the SSH tunnel, proxy env vars, and launch command written into local helper files:
+Use this if you want local helper files for the SSH tunnel, proxy env vars, and launch command:
 
 ```bash
 cp deploy/client.example.yaml deploy/client.yaml
 ```
 
-Start with these fields:
+Start with:
 
 - `ssh.user`
 - `ssh.host`
 - `proxy.password` to match the server-side password
-- If you changed the username, change `proxy.username` too
+- If you changed the username, update `proxy.username` too
 
 Run the deploy:
 
@@ -101,7 +101,7 @@ Run the deploy:
 go run ./cmd/codex-gateway deploy client
 ```
 
-If you only want to render files without building or restarting services:
+If you only want to render files without building or restarting:
 
 ```bash
 go run ./cmd/codex-gateway deploy vps --write-only
@@ -110,7 +110,7 @@ go run ./cmd/codex-gateway deploy client --write-only
 
 ### 3. Use It
 
-Start according to the mode you chose:
+Start according to your mode:
 
 - Mode A: run `codex` directly from the shell where the proxy env vars are set
 - Mode B: run it through the local wrapper with `~/.local/bin/codex-gateway-proxy codex`
@@ -126,22 +126,22 @@ Start according to the mode you chose:
 
 ## 🔍 What This Adds Beyond A Plain SSH / SOCKS Proxy
 
-If all you need is “send traffic out through a VPS,” a plain SSH tunnel or SOCKS proxy is often enough. `codex-gateway` adds an LLM-CLI-oriented control layer on top:
+If you only need to send traffic out through a VPS, a plain SSH tunnel or SOCKS proxy is often enough. `codex-gateway` adds an LLM-CLI-focused control layer:
 
-- SSH / SOCKS gives you transport; `codex-gateway` adds per-request Basic Auth, source IP checks, and concurrency limits
-- A plain proxy usually just forwards traffic; `codex-gateway` can restrict destination host / suffix / port so only approved model-service domains are reachable
-- A plain proxy usually does not re-check DNS results; `codex-gateway` blocks destinations that resolve to private or reserved IPs by default to reduce SSRF risk
-- SSH login logs are not proxy audit logs; `codex-gateway` records proxy username, destination, statuses, byte counts, and durations
-- The client wrapper lets you inject proxy env vars into a specific command such as `codex` instead of setting a machine-wide global proxy
+- SSH / SOCKS gives you transport; `codex-gateway` adds Basic Auth, source IP checks, and concurrency limits
+- Plain proxies mostly forward; `codex-gateway` can restrict host / suffix / port and only allow approved model-service domains
+- Plain proxies usually do not re-check DNS results; `codex-gateway` blocks targets that resolve to private or reserved IPs by default
+- SSH login logs are not proxy audit logs; `codex-gateway` records username, destination, statuses, bytes, and duration
+- The built-in client wrapper can make only specific commands such as `codex` use the proxy; no global proxy setting required
 
-In short: SSH gets traffic safely to the VPS, while `codex-gateway` turns that VPS into an egress gateway with policy, audit, and conservative defaults.
+In short: SSH gets traffic to the VPS; `codex-gateway` decides what is allowed and records what happened.
 
 ## 🧭 Design Principles
 
 - This is an explicit proxy, not a vendor API gateway
-- The safe default is `127.0.0.1` plus SSH / WireGuard / private ingress
+- Safe default: `127.0.0.1` plus SSH / WireGuard / private ingress
 - No protocol rewriting, no upstream API key hosting, no HTTPS MITM
-- Defaults stay conservative; open up only what you actually need
+- Conservative by default; allow only what you need
 
 ## ⚙️ Full Config
 
