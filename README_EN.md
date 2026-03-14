@@ -124,6 +124,18 @@ Start according to the mode you chose:
 - Observability: JSON logs, `/healthz`, optional `/metrics`
 - Simple deployment: single binary, Docker, Compose, and YAML-based one-click deploy
 
+## 🔍 What This Adds Beyond A Plain SSH / SOCKS Proxy
+
+If all you need is “send traffic out through a VPS,” a plain SSH tunnel or SOCKS proxy is often enough. `codex-gateway` adds an LLM-CLI-oriented control layer on top:
+
+- SSH / SOCKS gives you transport; `codex-gateway` adds per-request Basic Auth, source IP checks, and concurrency limits
+- A plain proxy usually just forwards traffic; `codex-gateway` can restrict destination host / suffix / port so only approved model-service domains are reachable
+- A plain proxy usually does not re-check DNS results; `codex-gateway` blocks destinations that resolve to private or reserved IPs by default to reduce SSRF risk
+- SSH login logs are not proxy audit logs; `codex-gateway` records proxy username, destination, statuses, byte counts, and durations
+- The client wrapper lets you inject proxy env vars into a specific command such as `codex` instead of setting a machine-wide global proxy
+
+In short: SSH gets traffic safely to the VPS, while `codex-gateway` turns that VPS into an egress gateway with policy, audit, and conservative defaults.
+
 ## 🧭 Design Principles
 
 - This is an explicit proxy, not a vendor API gateway

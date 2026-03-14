@@ -113,6 +113,18 @@ go run ./cmd/codex-gateway deploy client --write-only
 - 可观测性：JSON 日志、`/healthz`、可选 `/metrics`
 - 部署友好：单二进制、Docker、Compose、YAML 一键部署
 
+## 🔍 和普通 SSH / SOCKS 代理有什么不同
+
+如果你只需要“把流量绕到 VPS 出去”，普通 SSH 隧道或 SOCKS 代理通常已经够用。`codex-gateway` 额外提供的是一层面向 LLM CLI 的代理控制面：
+
+- SSH / SOCKS 负责通道；`codex-gateway` 负责按请求做 Basic Auth、源 IP、并发限制
+- 普通代理一般只会转发；`codex-gateway` 还能限制目标 host / suffix / port，只放行你允许的模型服务域名
+- 普通代理通常不会在 DNS 解析后再次校验目标地址；`codex-gateway` 默认拒绝解析到私网和保留地址的目标，降低 SSRF 风险
+- 普通 SSH 登录日志不等于代理审计；`codex-gateway` 会记录代理用户名、目标地址、状态码、字节数和耗时
+- 通过 client wrapper 可以把代理环境变量只注入给指定命令，例如 `codex`，而不是全局污染当前机器上的其他流量
+
+换句话说：SSH 给你的是“安全地到达 VPS”，`codex-gateway` 给你的是“带策略、审计和最小放行原则的出网网关”。
+
 ## 🧭 设计原则
 
 - 这是显式代理，不是厂商 API Gateway
@@ -126,4 +138,3 @@ go run ./cmd/codex-gateway deploy client --write-only
 - 服务端一键部署 YAML：[deploy/vps.example.yaml](./deploy/vps.example.yaml)
 - 客户端一键部署 YAML：[deploy/client.example.yaml](./deploy/client.example.yaml)
 - Docker / Compose：[docker-compose.yml](./docker-compose.yml)
-
