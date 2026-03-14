@@ -55,7 +55,9 @@ go run ./cmd/codex-gateway deploy vps
 systemctl --user status codex-gateway.service --no-pager
 ```
 
-This writes `.env`, `config/users.txt`, the binary, and the matching `systemd --user` service.
+If the VPS does not have a usable `systemd --user`, set `service_scope: system` in `deploy/vps.yaml` and rerun as root.
+
+This writes `.env`, `config/users.txt`, the binary, and the matching `systemd` service.
 
 ### 2. Choose One Client-Side Entry Mode
 
@@ -100,6 +102,8 @@ Run the deploy:
 ```bash
 go run ./cmd/codex-gateway deploy client
 ```
+
+If the client machine is not a good fit for `systemd --user`, you can switch to `service_scope: system` and install as root.
 
 If you only want to render files without building or restarting:
 

@@ -125,6 +125,10 @@ func RenderVPSUsers(spec VPSConfig) ([]byte, error) {
 
 func RenderVPSService(spec VPSConfig) []byte {
 	envPath := filepath.Join(spec.ProjectRoot, ".env")
+	wantedBy := "default.target"
+	if spec.ServiceScope == ServiceScopeSystem {
+		wantedBy = "multi-user.target"
+	}
 	return []byte(fmt.Sprintf(`[Unit]
 Description=Codex Gateway explicit proxy
 After=network-online.target
@@ -141,8 +145,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 
 [Install]
-WantedBy=default.target
-`, spec.ProjectRoot, envPath, spec.BinaryOutput))
+WantedBy=%s
+`, spec.ProjectRoot, envPath, spec.BinaryOutput, wantedBy))
 }
 
 func RenderClientEnv(spec ClientConfig) []byte {
@@ -191,6 +195,10 @@ func RenderClientService(spec ClientConfig) []byte {
 	}
 	sshArgs = append(sshArgs, spec.SSH.ExtraArgs...)
 	sshArgs = append(sshArgs, fmt.Sprintf("%s@%s", spec.SSH.User, spec.SSH.Host))
+	wantedBy := "default.target"
+	if spec.ServiceScope == ServiceScopeSystem {
+		wantedBy = "multi-user.target"
+	}
 
 	return []byte(fmt.Sprintf(`[Unit]
 Description=SSH tunnel to Codex Gateway
@@ -204,8 +212,8 @@ Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=default.target
-`, strings.Join(quoteSystemdArgs(sshArgs), " ")))
+WantedBy=%s
+`, strings.Join(quoteSystemdArgs(sshArgs), " "), wantedBy))
 }
 
 func joinInts(values []int) string {

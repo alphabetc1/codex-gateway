@@ -60,6 +60,11 @@ go run ./cmd/codex-gateway deploy vps
 
 如果缺少 `go`，先安装 Go，再继续。
 
+如果 `systemctl --user` 不可用：
+
+- 如果用户以 root 部署，优先把 `service_scope: system` 写进 YAML 再继续
+- 否则明确告诉用户需要启用可用的 user manager，例如 `loginctl enable-linger <user>`
+
 如果当前机器上已经有旧服务在跑，切换前先明确提醒用户会有一次短暂中断。
 
 ## 文件和安全规则

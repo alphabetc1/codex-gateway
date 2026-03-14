@@ -3,6 +3,8 @@
 
 service_name: codex-gateway-tunnel
 wrapper_name: codex-gateway-proxy
+# Optional: set to "system" for a system-level tunnel service when running as root.
+# service_scope: system
 
 ssh:
   user: admin

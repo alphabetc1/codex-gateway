@@ -1,6 +1,8 @@
 package deploy
 
 import (
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -109,5 +111,92 @@ func TestRenderClientArtifacts(t *testing.T) {
 	serviceText := string(RenderClientService(spec))
 	if !strings.Contains(serviceText, "/usr/bin/ssh") || !strings.Contains(serviceText, "127.0.0.1:8080:127.0.0.1:8080") {
 		t.Fatalf("service missing ssh tunnel command: %s", serviceText)
+	}
+}
+
+func TestRenderServicesUseScopeSpecificTargets(t *testing.T) {
+	vpsSpec := VPSConfig{
+		ProjectRoot:  "/srv/codex-gateway",
+		BinaryOutput: "/srv/codex-gateway/bin/codex-gateway",
+		ServiceName:  "codex-gateway",
+		ServiceScope: ServiceScopeSystem,
+	}
+	vpsService := string(RenderVPSService(vpsSpec))
+	if !strings.Contains(vpsService, "WantedBy=multi-user.target") {
+		t.Fatalf("system-scoped VPS service missing multi-user target: %s", vpsService)
+	}
+
+	clientSpec := ClientConfig{
+		ServiceName:  "codex-gateway-tunnel",
+		ServiceScope: ServiceScopeUser,
+		SSH: ClientSSH{
+			User:                "admin",
+			Host:                "your-vps.example.com",
+			ServerAliveInterval: 60,
+			ServerAliveCountMax: 3,
+		},
+		Tunnel: ClientTunnel{
+			LocalHost:  "127.0.0.1",
+			LocalPort:  8080,
+			RemoteHost: "127.0.0.1",
+			RemotePort: 8080,
+		},
+	}
+	clientService := string(RenderClientService(clientSpec))
+	if !strings.Contains(clientService, "WantedBy=default.target") {
+		t.Fatalf("user-scoped client service missing default target: %s", clientService)
+	}
+}
+
+func TestClientWrapperScopesProxyEnvToCommand(t *testing.T) {
+	if _, err := os.Stat("/bin/sh"); err != nil {
+		t.Skip("/bin/sh is required for wrapper smoke test")
+	}
+
+	spec := ClientConfig{
+		InstallDir:  "/home/test/.config/codex-gateway",
+		ServiceName: "codex-gateway-tunnel",
+		WrapperName: "codex-gateway-proxy",
+		Tunnel: ClientTunnel{
+			LocalHost:  "127.0.0.1",
+			LocalPort:  8080,
+			RemoteHost: "127.0.0.1",
+			RemotePort: 8080,
+		},
+		Proxy: ClientProxy{
+			Username: "alice",
+			Password: "secret",
+			NoProxy:  []string{"localhost", "127.0.0.1", "::1"},
+		},
+	}
+
+	tempDir := t.TempDir()
+	envPath := filepath.Join(tempDir, "proxy.env")
+	wrapperPath := filepath.Join(tempDir, "codex-gateway-proxy")
+	if err := os.WriteFile(envPath, RenderClientEnv(spec), 0o600); err != nil {
+		t.Fatalf("WriteFile(env) error = %v", err)
+	}
+	if err := os.WriteFile(wrapperPath, RenderClientWrapper(spec, envPath), 0o755); err != nil {
+		t.Fatalf("WriteFile(wrapper) error = %v", err)
+	}
+
+	direct := exec.Command("/bin/sh", "-c", `printf '%s' "${HTTP_PROXY:-}"`)
+	direct.Env = []string{"PATH=/usr/bin:/bin"}
+	directOutput, err := direct.Output()
+	if err != nil {
+		t.Fatalf("direct command error = %v", err)
+	}
+	if strings.TrimSpace(string(directOutput)) != "" {
+		t.Fatalf("direct command unexpectedly saw proxy env: %q", string(directOutput))
+	}
+
+	wrapped := exec.Command(wrapperPath, "/bin/sh", "-c", `printf '%s|%s' "$HTTP_PROXY" "$NO_PROXY"`)
+	wrapped.Env = []string{"PATH=/usr/bin:/bin"}
+	wrappedOutput, err := wrapped.Output()
+	if err != nil {
+		t.Fatalf("wrapped command error = %v", err)
+	}
+	if got := string(wrappedOutput); got != "http://alice:secret@127.0.0.1:8080|localhost,127.0.0.1,::1" {
+		t.Fatalf("wrapped env = %q", got)
 	}
 }

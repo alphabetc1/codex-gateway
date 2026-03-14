@@ -13,6 +13,7 @@ type VPSConfig struct {
 	ProjectRoot  string            `yaml:"project_root"`
 	BinaryOutput string            `yaml:"binary_output"`
 	ServiceName  string            `yaml:"service_name"`
+	ServiceScope string            `yaml:"service_scope"`
 	WriteOnly    bool              `yaml:"write_only"`
 	Users        []ProxyUser       `yaml:"users"`
 	Runtime      VPSRuntime        `yaml:"runtime"`
@@ -59,6 +60,7 @@ type ClientConfig struct {
 	InstallDir  string       `yaml:"install_dir"`
 	ServiceName string       `yaml:"service_name"`
 	WrapperName string       `yaml:"wrapper_name"`
+	ServiceScope string      `yaml:"service_scope"`
 	WriteOnly   bool         `yaml:"write_only"`
 	SSH         ClientSSH    `yaml:"ssh"`
 	Tunnel      ClientTunnel `yaml:"tunnel"`
@@ -136,6 +138,10 @@ func normalizeVPSConfig(spec VPSConfig) (VPSConfig, error) {
 	}
 	if strings.TrimSpace(spec.ServiceName) == "" {
 		spec.ServiceName = "codex-gateway"
+	}
+	spec.ServiceScope, err = normalizeServiceScope(spec.ServiceScope)
+	if err != nil {
+		return VPSConfig{}, err
 	}
 
 	runtime := spec.Runtime
@@ -229,6 +235,10 @@ func normalizeClientConfig(spec ClientConfig) (ClientConfig, error) {
 	}
 	if strings.TrimSpace(spec.WrapperName) == "" {
 		spec.WrapperName = "codex-gateway-proxy"
+	}
+	spec.ServiceScope, err = normalizeServiceScope(spec.ServiceScope)
+	if err != nil {
+		return ClientConfig{}, err
 	}
 
 	if strings.TrimSpace(spec.SSH.User) == "" || strings.TrimSpace(spec.SSH.Host) == "" {

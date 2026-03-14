@@ -4,6 +4,8 @@
 project_root: .
 binary_output: bin/codex-gateway
 service_name: codex-gateway
+# Optional: set to "system" when `systemd --user` is unavailable and you are deploying as root.
+# service_scope: system
 
 users:
   - username: alice

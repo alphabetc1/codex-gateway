@@ -23,8 +23,11 @@ type ClientInstallResult struct {
 func InstallVPS(spec VPSConfig) (VPSInstallResult, error) {
 	envPath := filepath.Join(spec.ProjectRoot, ".env")
 	usersPath := filepath.Join(spec.ProjectRoot, "config", "users.txt")
-	servicePath, err := userServicePath(spec.ServiceName)
+	serviceInstall, err := newSystemdInstall(spec.ServiceScope, spec.ServiceName)
 	if err != nil {
+		return VPSInstallResult{}, err
+	}
+	if err := serviceInstall.preflight(spec.WriteOnly); err != nil {
 		return VPSInstallResult{}, err
 	}
 
@@ -44,7 +47,7 @@ func InstallVPS(spec VPSConfig) (VPSInstallResult, error) {
 	if err := os.MkdirAll(filepath.Dir(spec.BinaryOutput), 0o755); err != nil {
 		return VPSInstallResult{}, fmt.Errorf("mkdir binary dir: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(serviceInstall.servicePath), 0o755); err != nil {
 		return VPSInstallResult{}, fmt.Errorf("mkdir service dir: %w", err)
 	}
 
@@ -54,18 +57,21 @@ func InstallVPS(spec VPSConfig) (VPSInstallResult, error) {
 	if err := os.WriteFile(usersPath, usersContent, 0o600); err != nil {
 		return VPSInstallResult{}, fmt.Errorf("write users: %w", err)
 	}
-	if err := os.WriteFile(servicePath, serviceContent, 0o644); err != nil {
+	if err := os.WriteFile(serviceInstall.servicePath, serviceContent, 0o644); err != nil {
 		return VPSInstallResult{}, fmt.Errorf("write service: %w", err)
 	}
 
 	if !spec.WriteOnly {
+		if err := ensureGoToolchain(); err != nil {
+			return VPSInstallResult{}, err
+		}
 		if err := buildBinary(spec.ProjectRoot, spec.BinaryOutput); err != nil {
 			return VPSInstallResult{}, err
 		}
-		if err := runCommand("systemctl", "--user", "daemon-reload"); err != nil {
+		if err := runCommand("systemctl", serviceInstall.systemctlArgs("daemon-reload")...); err != nil {
 			return VPSInstallResult{}, err
 		}
-		if err := runCommand("systemctl", "--user", "enable", "--now", spec.ServiceName+".service"); err != nil {
+		if err := runCommand("systemctl", serviceInstall.systemctlArgs("enable", "--now", spec.ServiceName+".service")...); err != nil {
 			return VPSInstallResult{}, err
 		}
 	}
@@ -74,7 +80,7 @@ func InstallVPS(spec VPSConfig) (VPSInstallResult, error) {
 		EnvPath:     envPath,
 		UsersPath:   usersPath,
 		BinaryPath:  spec.BinaryOutput,
-		ServicePath: servicePath,
+		ServicePath: serviceInstall.servicePath,
 	}, nil
 }
 
@@ -84,8 +90,11 @@ func InstallClient(spec ClientConfig) (ClientInstallResult, error) {
 	if err != nil {
 		return ClientInstallResult{}, err
 	}
-	servicePath, err := userServicePath(spec.ServiceName)
+	serviceInstall, err := newSystemdInstall(spec.ServiceScope, spec.ServiceName)
 	if err != nil {
+		return ClientInstallResult{}, err
+	}
+	if err := serviceInstall.preflight(spec.WriteOnly); err != nil {
 		return ClientInstallResult{}, err
 	}
 
@@ -95,7 +104,7 @@ func InstallClient(spec ClientConfig) (ClientInstallResult, error) {
 	if err := os.MkdirAll(filepath.Dir(wrapperPath), 0o755); err != nil {
 		return ClientInstallResult{}, fmt.Errorf("mkdir wrapper dir: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(serviceInstall.servicePath), 0o755); err != nil {
 		return ClientInstallResult{}, fmt.Errorf("mkdir service dir: %w", err)
 	}
 
@@ -105,15 +114,15 @@ func InstallClient(spec ClientConfig) (ClientInstallResult, error) {
 	if err := os.WriteFile(wrapperPath, RenderClientWrapper(spec, envPath), 0o755); err != nil {
 		return ClientInstallResult{}, fmt.Errorf("write wrapper: %w", err)
 	}
-	if err := os.WriteFile(servicePath, RenderClientService(spec), 0o644); err != nil {
+	if err := os.WriteFile(serviceInstall.servicePath, RenderClientService(spec), 0o644); err != nil {
 		return ClientInstallResult{}, fmt.Errorf("write service: %w", err)
 	}
 
 	if !spec.WriteOnly {
-		if err := runCommand("systemctl", "--user", "daemon-reload"); err != nil {
+		if err := runCommand("systemctl", serviceInstall.systemctlArgs("daemon-reload")...); err != nil {
 			return ClientInstallResult{}, err
 		}
-		if err := runCommand("systemctl", "--user", "enable", "--now", spec.ServiceName+".service"); err != nil {
+		if err := runCommand("systemctl", serviceInstall.systemctlArgs("enable", "--now", spec.ServiceName+".service")...); err != nil {
 			return ClientInstallResult{}, err
 		}
 	}
@@ -121,7 +130,7 @@ func InstallClient(spec ClientConfig) (ClientInstallResult, error) {
 	return ClientInstallResult{
 		EnvPath:     envPath,
 		WrapperPath: wrapperPath,
-		ServicePath: servicePath,
+		ServicePath: serviceInstall.servicePath,
 	}, nil
 }
 
@@ -141,14 +150,6 @@ func runCommand(name string, args ...string) error {
 		return fmt.Errorf("%s %v failed: %w: %s", name, args, err, string(out))
 	}
 	return nil
-}
-
-func userServicePath(name string) (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("home dir: %w", err)
-	}
-	return filepath.Join(home, ".config", "systemd", "user", name+".service"), nil
 }
 
 func clientWrapperPath(name string) (string, error) {

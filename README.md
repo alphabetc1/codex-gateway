@@ -44,7 +44,9 @@ go run ./cmd/codex-gateway deploy vps
 systemctl --user status codex-gateway.service --no-pager
 ```
 
-这会生成 `.env`、`config/users.txt`、二进制和对应的 `systemd --user` 服务。
+如果 VPS 上没有可用的 `systemd --user`，把 `service_scope: system` 写进 `deploy/vps.yaml`，再以 root 重新执行。
+
+这会生成 `.env`、`config/users.txt`、二进制和对应的 `systemd` 服务。
 
 ### 2. Client 端选择一种接入方式
 
@@ -89,6 +91,8 @@ cp deploy/client.example.yaml deploy/client.yaml
 ```bash
 go run ./cmd/codex-gateway deploy client
 ```
+
+如果本机不适合 `systemd --user`，也可以改成 `service_scope: system` 后以 root 安装。
 
 如果只想生成文件，不立即 build / restart：
 
