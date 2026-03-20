@@ -312,6 +312,86 @@ func TestCONNECTHalfCloseDoesNotDeadlock(t *testing.T) {
 	}
 }
 
+func TestHandlerUpdateRuntimeSwapsAllowlistAndAuth(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("reload-ok"))
+	}))
+	defer upstream.Close()
+
+	addr, port := listenerAddrPort(t, upstream.Listener.Addr())
+
+	appLogs := &bytes.Buffer{}
+	auditLogs := &bytes.Buffer{}
+	loggers, err := logging.NewWithWriters("debug", "json", appLogs, auditLogs)
+	if err != nil {
+		t.Fatalf("NewWithWriters() error = %v", err)
+	}
+
+	aliceHash, err := auth.HashPassword(testPassword, bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("HashPassword(alice) error = %v", err)
+	}
+
+	handler := NewHandler(Options{
+		AppLogger:        loggers.App,
+		AuditLogger:      loggers.Audit,
+		AccessLogEnabled: true,
+		AuthStore:        auth.NewMapStore(map[string]string{testUsername: aliceHash}),
+		Limiter:          limiter.New(4),
+		Policy: Policy{
+			AllowedPorts: map[uint16]struct{}{port: {}},
+			HostMatcher:  netutil.NewHostMatcher(map[string]struct{}{"denied.example": {}}, nil),
+			Resolver:     staticResolver{testHostName: {addr}},
+			AllowPrivate: true,
+		},
+		SourceIPs:                     netutil.NewPrefixMatcher(nil),
+		Metrics:                       NewMetrics(),
+		UpstreamDialTimeout:           2 * time.Second,
+		UpstreamTLSHandshakeTimeout:   2 * time.Second,
+		UpstreamResponseHeaderTimeout: 2 * time.Second,
+		IdleTimeout:                   2 * time.Second,
+		TunnelIdleTimeout:             2 * time.Second,
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	response := doRawHTTP(t, proxyAddress(server), rawForwardRequestWithAuth(port, testUsername, testPassword))
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("status before reload = %d, want %d", response.StatusCode, http.StatusForbidden)
+	}
+
+	bobHash, err := auth.HashPassword("next-secret", bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("HashPassword(bob) error = %v", err)
+	}
+
+	handler.UpdateRuntime(RuntimeConfig{
+		AuthStore: auth.NewMapStore(map[string]string{"bob": bobHash}),
+		Policy: Policy{
+			AllowedPorts: map[uint16]struct{}{port: {}},
+			HostMatcher:  netutil.NewHostMatcher(map[string]struct{}{testHostName: {}}, nil),
+			Resolver:     staticResolver{testHostName: {addr}},
+			AllowPrivate: true,
+		},
+		SourceIPs: netutil.NewPrefixMatcher(nil),
+	})
+
+	response = doRawHTTP(t, proxyAddress(server), rawForwardRequestWithAuth(port, testUsername, testPassword))
+	if response.StatusCode != http.StatusProxyAuthRequired {
+		t.Fatalf("status with stale credentials = %d, want %d", response.StatusCode, http.StatusProxyAuthRequired)
+	}
+
+	response = doRawHTTP(t, proxyAddress(server), rawForwardRequestWithAuth(port, "bob", "next-secret"))
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status after reload = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	if body := strings.TrimSpace(response.Body); body != "reload-ok" {
+		t.Fatalf("body after reload = %q, want %q", body, "reload-ok")
+	}
+}
+
 func startProxyServer(t *testing.T, options proxyTestOptions) (*httptest.Server, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 
@@ -481,13 +561,17 @@ func readConnectResponse(reader *bufio.Reader) (int, http.Header, error) {
 }
 
 func rawForwardRequest(port uint16) string {
+	return rawForwardRequestWithAuth(port, testUsername, testPassword)
+}
+
+func rawForwardRequestWithAuth(port uint16, username, password string) string {
 	return fmt.Sprintf(
 		"GET http://%s:%d/v1/messages HTTP/1.1\r\nHost: %s:%d\r\nAuthorization: Bearer upstream-token\r\nConnection: keep-alive, X-Proxy-Secret\r\nX-Proxy-Secret: drop-me\r\nProxy-Connection: keep-alive\r\nProxy-Authorization: %s\r\n\r\n",
 		testHostName,
 		port,
 		testHostName,
 		port,
-		proxyAuthorizationHeader(),
+		proxyAuthorizationHeaderFor(username, password),
 	)
 }
 
@@ -503,5 +587,9 @@ func rawConnectRequest(port uint16) string {
 }
 
 func proxyAuthorizationHeader() string {
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(testUsername+":"+testPassword))
+	return proxyAuthorizationHeaderFor(testUsername, testPassword)
+}
+
+func proxyAuthorizationHeaderFor(username, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
 }

@@ -105,8 +105,11 @@ func TestRenderClientArtifacts(t *testing.T) {
 	}
 
 	wrapperText := string(RenderClientWrapper(spec, filepath.Join(spec.InstallDir, "proxy.env")))
-	if !strings.Contains(wrapperText, ". '/home/test/.config/codex-gateway/proxy.env'") {
+	if !strings.Contains(wrapperText, "env_path='/home/test/.config/codex-gateway/proxy.env'") {
 		t.Fatalf("wrapper missing env source: %s", wrapperText)
+	}
+	if !strings.Contains(wrapperText, `. "$env_path"`) {
+		t.Fatalf("wrapper missing dynamic env source: %s", wrapperText)
 	}
 	if !strings.Contains(wrapperText, `exec "$@"`) {
 		t.Fatalf("wrapper missing exec: %s", wrapperText)
@@ -128,6 +131,9 @@ func TestRenderServicesUseScopeSpecificTargets(t *testing.T) {
 	vpsService := string(RenderVPSService(vpsSpec))
 	if !strings.Contains(vpsService, "WantedBy=multi-user.target") {
 		t.Fatalf("system-scoped VPS service missing multi-user target: %s", vpsService)
+	}
+	if !strings.Contains(vpsService, "Environment=CODEX_GATEWAY_ENV_FILE=/srv/codex-gateway/.env") {
+		t.Fatalf("system-scoped VPS service missing env file hint: %s", vpsService)
 	}
 
 	clientSpec := ClientConfig{

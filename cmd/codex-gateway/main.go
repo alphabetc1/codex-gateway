@@ -8,16 +8,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"codex-gateway/internal/admin"
-	"codex-gateway/internal/auth"
 	"codex-gateway/internal/config"
 	"codex-gateway/internal/deploy"
 	"codex-gateway/internal/limiter"
 	"codex-gateway/internal/logging"
-	"codex-gateway/internal/netutil"
 	"codex-gateway/internal/proxy"
 	"codex-gateway/internal/version"
 )
@@ -47,7 +46,8 @@ func run(args []string) int {
 		}
 	}
 
-	cfg, err := config.LoadFromEnv()
+	loader := newRuntimeLoader()
+	cfg, runtimeConfig, err := loader.Load()
 	if err != nil {
 		slog.Error("load config failed", "error", err.Error())
 		return 1
@@ -59,29 +59,16 @@ func run(args []string) int {
 		return 1
 	}
 
-	userStore, err := auth.LoadUserStore(cfg.AuthUsersFile, cfg.AuthUsers)
-	if err != nil {
-		loggers.App.Error("load auth users failed", "error", err.Error())
-		return 1
-	}
-
 	metrics := proxy.NewMetrics()
-	sourceMatcher := netutil.NewPrefixMatcher(cfg.SourceAllowlist)
-	hostMatcher := netutil.NewHostMatcher(cfg.DestHosts, cfg.DestSuffixes)
 
 	handler := proxy.NewHandler(proxy.Options{
-		AppLogger:        loggers.App,
-		AuditLogger:      loggers.Audit,
-		AccessLogEnabled: cfg.AccessLogEnabled,
-		AuthStore:        userStore,
-		Limiter:          limiter.New(cfg.MaxConnsPerIP),
-		Policy: proxy.Policy{
-			AllowedPorts: cfg.DestPorts,
-			HostMatcher:  hostMatcher,
-			Resolver:     netutil.NetResolver{},
-			AllowPrivate: cfg.AllowPrivateDestinations,
-		},
-		SourceIPs:                     sourceMatcher,
+		AppLogger:                     loggers.App,
+		AuditLogger:                   loggers.Audit,
+		AccessLogEnabled:              cfg.AccessLogEnabled,
+		AuthStore:                     runtimeConfig.AuthStore,
+		Limiter:                       limiter.New(cfg.MaxConnsPerIP),
+		Policy:                        runtimeConfig.Policy,
+		SourceIPs:                     runtimeConfig.SourceIPs,
 		Metrics:                       metrics,
 		UpstreamDialTimeout:           cfg.UpstreamDialTimeout,
 		UpstreamTLSHandshakeTimeout:   cfg.UpstreamTLSHandshakeTimeout,
@@ -108,22 +95,58 @@ func run(args []string) int {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	reloadCh := make(chan os.Signal, 1)
+	signal.Notify(reloadCh, syscall.SIGHUP)
+	defer signal.Stop(reloadCh)
 
 	errCh := make(chan error, 2)
 
 	go serveProxy(loggers.App, proxyServer, cfg, errCh)
 	go serveHTTP(loggers.App, "admin", adminServer, errCh)
 
-	select {
-	case <-ctx.Done():
-		loggers.App.Info("shutdown signal received")
-	case serveErr := <-errCh:
-		if serveErr != nil {
-			loggers.App.Error("server exited", "error", serveErr.Error())
-			stop()
+	for {
+		select {
+		case <-ctx.Done():
+			loggers.App.Info("shutdown signal received")
+			goto shutdown
+		case <-reloadCh:
+			nextCfg, nextRuntime, reloadErr := loader.Load()
+			if reloadErr != nil {
+				loggers.App.Error("config reload failed", "error", reloadErr.Error())
+				continue
+			}
+
+			handler.UpdateRuntime(nextRuntime)
+
+			if fields := changedReloadableFields(cfg, nextCfg); len(fields) > 0 {
+				loggers.App.Info("config reload applied",
+					"signal", "SIGHUP",
+					"fields", strings.Join(fields, ","),
+					"env_file", loader.envFilePath,
+				)
+			} else {
+				loggers.App.Info("config reload completed with no reloadable changes",
+					"signal", "SIGHUP",
+					"env_file", loader.envFilePath,
+				)
+			}
+
+			if fields := immutableConfigChanges(cfg, nextCfg); len(fields) > 0 {
+				loggers.App.Warn("config reload requires restart for some fields",
+					"fields", strings.Join(fields, ","),
+				)
+			}
+
+			cfg = applyReloadableConfig(cfg, nextCfg)
+		case serveErr := <-errCh:
+			if serveErr != nil {
+				loggers.App.Error("server exited", "error", serveErr.Error())
+				stop()
+			}
 		}
 	}
 
+shutdown:
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

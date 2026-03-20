@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-func (h *Handler) handleConnect(w http.ResponseWriter, r *http.Request, state *requestState) {
+func (h *Handler) handleConnect(w http.ResponseWriter, r *http.Request, state *requestState, runtime *runtimeState) {
 	authority := r.Host
 	if authority == "" {
 		authority = r.RequestURI
 	}
 	state.audit.Destination = authority
 
-	resolution, proxyErr := h.policy.ResolveCONNECT(r.Context(), authority)
+	resolution, proxyErr := runtime.policy.ResolveCONNECT(r.Context(), authority)
 	if proxyErr != nil {
 		h.writeProxyError(w, state, proxyErr)
 		return

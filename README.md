@@ -130,7 +130,38 @@ go run ./cmd/codex-gateway deploy vps --write-only
 go run ./cmd/codex-gateway deploy client --write-only
 ```
 
-### 3. 开始使用
+### 3. 动态更新白名单
+
+如果只想热更新白名单、目标端口、源地址白名单或代理认证用户，不想重启代理进程，可以用 `SIGHUP`：
+
+1. 修改 `deploy/vps.yaml`
+2. 只重写服务端生成文件：
+
+```bash
+go run ./cmd/codex-gateway deploy vps --write-only
+```
+
+3. 给正在运行的服务发送 `SIGHUP`：
+
+```bash
+systemctl --user kill -s HUP codex-gateway.service
+```
+
+如果你用的是 system scope：
+
+```bash
+sudo systemctl kill -s HUP codex-gateway.service
+```
+
+如果你是手工启动二进制：
+
+```bash
+kill -HUP <pid>
+```
+
+`SIGHUP` 会重新加载 `.env`、`AUTH_USERS_FILE`、`SOURCE_ALLOWLIST_CIDRS`、`DEST_PORT_ALLOWLIST`、`DEST_HOST_ALLOWLIST`、`DEST_SUFFIX_ALLOWLIST` 和 `ALLOW_PRIVATE_DESTINATIONS`。监听地址、TLS、超时、日志、metrics 等非运行时配置仍然需要 restart 才会生效。
+
+### 4. 开始使用
 
 按接入方式启动：
 

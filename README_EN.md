@@ -134,7 +134,38 @@ go run ./cmd/codex-gateway deploy vps --write-only
 go run ./cmd/codex-gateway deploy client --write-only
 ```
 
-### 3. Use It
+### 3. Dynamically Update The Allowlist
+
+If you only need to hot-reload the destination allowlists, allowed ports, source allowlist, or proxy auth users, send `SIGHUP` instead of restarting the proxy:
+
+1. Edit `deploy/vps.yaml`
+2. Rewrite the generated server files only:
+
+```bash
+go run ./cmd/codex-gateway deploy vps --write-only
+```
+
+3. Send `SIGHUP` to the running service:
+
+```bash
+systemctl --user kill -s HUP codex-gateway.service
+```
+
+If you run the service with system scope:
+
+```bash
+sudo systemctl kill -s HUP codex-gateway.service
+```
+
+If you launch the binary manually:
+
+```bash
+kill -HUP <pid>
+```
+
+`SIGHUP` reloads `.env`, `AUTH_USERS_FILE`, `SOURCE_ALLOWLIST_CIDRS`, `DEST_PORT_ALLOWLIST`, `DEST_HOST_ALLOWLIST`, `DEST_SUFFIX_ALLOWLIST`, and `ALLOW_PRIVATE_DESTINATIONS`. Listener addresses, TLS, timeouts, logging, metrics, and other non-runtime settings still require a restart.
+
+### 4. Use It
 
 Start according to your mode:
 

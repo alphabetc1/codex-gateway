@@ -314,7 +314,7 @@ func normalizeClientEndpoints(spec ClientConfig) ([]ClientEndpoint, error) {
 		}
 
 		tunnel := mergeClientTunnel(baseTunnel, raw.Tunnel)
-		if tunnel.LocalPort == 0 {
+		if raw.Tunnel.LocalPort == 0 {
 			tunnel.LocalPort = baseLocalPort + index
 		}
 		tunnel, err = normalizeClientTunnel(tunnel, tunnel.LocalPort)

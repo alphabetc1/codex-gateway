@@ -104,11 +104,9 @@ type Handler struct {
 	auditLogger      *slog.Logger
 	accessLogEnabled bool
 
-	authStore auth.UserStore
-	limiter   *limiter.ConcurrencyLimiter
-	policy    Policy
-	sourceIPs netutil.PrefixMatcher
-	metrics   *Metrics
+	runtime atomic.Value
+	limiter *limiter.ConcurrencyLimiter
+	metrics *Metrics
 
 	dialer            net.Dialer
 	transport         *http.Transport
@@ -120,10 +118,7 @@ func NewHandler(options Options) *Handler {
 		appLogger:        options.AppLogger,
 		auditLogger:      options.AuditLogger,
 		accessLogEnabled: options.AccessLogEnabled,
-		authStore:        options.AuthStore,
 		limiter:          options.Limiter,
-		policy:           options.Policy,
-		sourceIPs:        options.SourceIPs,
 		metrics:          options.Metrics,
 		dialer: net.Dialer{
 			Timeout:   options.UpstreamDialTimeout,
@@ -143,13 +138,31 @@ func NewHandler(options Options) *Handler {
 		DialContext:           handler.dialContext,
 	}
 
+	handler.runtime.Store(newRuntimeState(RuntimeConfig{
+		AuthStore: options.AuthStore,
+		Policy:    options.Policy,
+		SourceIPs: options.SourceIPs,
+	}))
+
 	return handler
+}
+
+func (h *Handler) UpdateRuntime(config RuntimeConfig) {
+	h.runtime.Store(newRuntimeState(config))
+	if h.transport != nil {
+		h.transport.CloseIdleConnections()
+	}
+}
+
+func (h *Handler) currentRuntime() *runtimeState {
+	return h.runtime.Load().(*runtimeState)
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	state := newRequestState(r.Method)
 	state.audit.Duration = time.Since(state.audit.StartedAt)
 	defer h.finishAudit(r.Context(), state)
+	runtime := h.currentRuntime()
 
 	sourceIP, err := netutil.ParseRemoteIP(r.RemoteAddr)
 	if err != nil {
@@ -158,7 +171,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	state.audit.SourceIP = sourceIP.String()
 
-	if !h.sourceIPs.Allow(sourceIP) {
+	if !runtime.sourceIPs.Allow(sourceIP) {
 		h.writeProxyError(w, state, &HandlerError{
 			Status:   http.StatusForbidden,
 			Category: CategorySourceDenied,
@@ -188,7 +201,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, authStoreErr := h.authStore.Authenticate(credentials.Username, credentials.Password)
+	ok, authStoreErr := runtime.authStore.Authenticate(credentials.Username, credentials.Password)
 	if authStoreErr != nil {
 		h.writeProxyError(w, state, &HandlerError{
 			Status:   http.StatusInternalServerError,
@@ -209,10 +222,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	state.audit.Username = credentials.Username
 
 	if r.Method == http.MethodConnect {
-		h.handleConnect(w, r, state)
+		h.handleConnect(w, r, state, runtime)
 		return
 	}
-	h.handleForwardHTTP(w, r, state)
+	h.handleForwardHTTP(w, r, state, runtime)
 }
 
 func (h *Handler) finishAudit(ctx context.Context, state *requestState) {

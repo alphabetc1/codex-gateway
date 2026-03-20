@@ -144,6 +144,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%s
+Environment=CODEX_GATEWAY_ENV_FILE=%s
 EnvironmentFile=%s
 ExecStart=%s
 Restart=always
@@ -153,7 +154,7 @@ PrivateTmp=true
 
 [Install]
 WantedBy=%s
-`, spec.ProjectRoot, envPath, spec.BinaryOutput, wantedBy))
+`, spec.ProjectRoot, envPath, envPath, spec.BinaryOutput, wantedBy))
 }
 
 func RenderClientEnv(spec ClientConfig) []byte {
