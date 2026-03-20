@@ -178,8 +178,11 @@ func normalizeVPSConfig(spec VPSConfig) (VPSConfig, error) {
 	if len(runtime.DestPortAllowlist) == 0 {
 		runtime.DestPortAllowlist = []int{443}
 	}
+	if len(runtime.DestHostAllowlist) == 0 {
+		runtime.DestHostAllowlist = []string{"storage.googleapis.com"}
+	}
 	if len(runtime.DestSuffixAllowlist) == 0 {
-		runtime.DestSuffixAllowlist = []string{".anthropic.com", ".openai.com", ".openrouter.ai", ".chatgpt.com"}
+		runtime.DestSuffixAllowlist = []string{".claude.ai", ".claude.com", ".anthropic.com", ".openai.com", ".openrouter.ai", ".chatgpt.com"}
 	}
 	if runtime.MaxConnsPerIP == 0 {
 		runtime.MaxConnsPerIP = 16

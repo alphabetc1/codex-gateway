@@ -21,7 +21,11 @@ runtime:
     - ::1/128
   dest_port_allowlist:
     - 443
+  dest_host_allowlist:
+    - storage.googleapis.com
   dest_suffix_allowlist:
+    - .claude.ai
+    - .claude.com
     - .anthropic.com
     - .openai.com
     - .openrouter.ai

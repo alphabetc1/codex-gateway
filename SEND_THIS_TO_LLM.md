@@ -39,10 +39,14 @@
 - 代理监听 `127.0.0.1:8080`
 - 管理端监听 `127.0.0.1:9090`
 - 默认放行：
+  - `.claude.ai`
+  - `.claude.com`
   - `.anthropic.com`
   - `.openai.com`
   - `.openrouter.ai`
   - `.chatgpt.com`
+- 默认精确 host 放行：
+  - `storage.googleapis.com`
 - 客户端通过 SSH 隧道访问服务端
 
 ## 部署方式

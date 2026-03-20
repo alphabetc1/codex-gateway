@@ -23,6 +23,7 @@ func TestRenderVPSEnvUsesAbsoluteRuntimePaths(t *testing.T) {
 			AdminListenPort:               9090,
 			SourceAllowlistCIDRs:          []string{"127.0.0.1/32"},
 			DestPortAllowlist:             []int{443},
+			DestHostAllowlist:             []string{"storage.googleapis.com"},
 			DestSuffixAllowlist:           []string{".chatgpt.com"},
 			MaxConnsPerIP:                 16,
 			ServerReadHeaderTimeout:       "10s",
@@ -47,6 +48,9 @@ func TestRenderVPSEnvUsesAbsoluteRuntimePaths(t *testing.T) {
 	}
 	if !strings.Contains(text, "DEST_SUFFIX_ALLOWLIST=.chatgpt.com") {
 		t.Fatalf("env missing suffix allowlist: %s", text)
+	}
+	if !strings.Contains(text, "DEST_HOST_ALLOWLIST=storage.googleapis.com") {
+		t.Fatalf("env missing host allowlist: %s", text)
 	}
 }
 

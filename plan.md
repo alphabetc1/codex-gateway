@@ -51,7 +51,7 @@ Recommended default in v1:
 This service must not become a generic open proxy. P0 should enforce:
 - Destination port allowlist, default `443`
 - Destination hostname exact match allowlist
-- Destination suffix allowlist, for example `.anthropic.com`, `.openai.com`
+- Destination suffix allowlist, for example `.claude.ai`, `.claude.com`, `.anthropic.com`, `.openai.com`
 - Resolution-time IP blocking for private/reserved IPs
 
 Optional future expansion:

@@ -55,10 +55,18 @@ Start with:
 
 The sample already includes common model service domains:
 
+- `.claude.ai`
+- `.claude.com`
 - `.anthropic.com`
 - `.openai.com`
 - `.openrouter.ai`
 - `.chatgpt.com`
+
+The default sample also allowlists the exact host `storage.googleapis.com` through `runtime.dest_host_allowlist` to cover Claude Code's legacy download path while that migration is still in progress.
+
+Avoid removing the allowlist entirely or approximating a wildcard. A better default is to allow vendor product domain families such as `.anthropic.com`, `.claude.com`, and `.claude.ai`, then add a small number of exact hosts only when needed.
+
+If Claude Code cannot connect to `platform.claude.com`, your current allowlist is missing `.claude.com`. Add it to `runtime.dest_suffix_allowlist` and rerun the deployment.
 
 Run the deploy:
 

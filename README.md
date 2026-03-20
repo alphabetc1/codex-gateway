@@ -51,10 +51,18 @@ cp deploy/vps.example.yaml deploy/vps.yaml
 
 示例已经包含常见模型服务域名：
 
+- `.claude.ai`
+- `.claude.com`
 - `.anthropic.com`
 - `.openai.com`
 - `.openrouter.ai`
 - `.chatgpt.com`
+
+默认示例还会通过 `runtime.dest_host_allowlist` 放行精确主机 `storage.googleapis.com`，用于兼容 Claude Code 仍在迁移中的 legacy 下载路径。
+
+不建议直接把白名单放空或改成近似全放开。更稳的做法是按产品域族放行，比如 Claude 用 `.anthropic.com`、`.claude.com`、`.claude.ai`，再补必要的精确 host。
+
+如果 `Claude Code` 提示无法连接 `platform.claude.com`，说明你当前部署的白名单里还没有放行 `.claude.com`。把它加入 `runtime.dest_suffix_allowlist` 后重新执行部署。
 
 执行部署：
 
