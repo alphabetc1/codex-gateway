@@ -14,15 +14,15 @@ import (
 )
 
 const (
-	CategoryAuthFailed       = "auth_failed"
-	CategorySourceDenied     = "source_ip_denied"
-	CategoryConcurrencyLimit = "concurrency_limited"
-	CategoryDestinationDenied = "destination_denied"
+	CategoryAuthFailed         = "auth_failed"
+	CategorySourceDenied       = "source_ip_denied"
+	CategoryConcurrencyLimit   = "concurrency_limited"
+	CategoryDestinationDenied  = "destination_denied"
 	CategoryUpstreamDialFailed = "upstream_dial_failed"
-	CategoryUpstreamTimeout  = "upstream_timeout"
-	CategoryBadRequest       = "bad_request"
-	CategoryTunnelIO         = "tunnel_io_error"
-	CategoryInternal         = "internal_error"
+	CategoryUpstreamTimeout    = "upstream_timeout"
+	CategoryBadRequest         = "bad_request"
+	CategoryTunnelIO           = "tunnel_io_error"
+	CategoryInternal           = "internal_error"
 )
 
 type HandlerError struct {
@@ -61,6 +61,14 @@ type Resolution struct {
 
 func (r Resolution) DialAddress() string {
 	return net.JoinHostPort(r.Selected.String(), strconv.Itoa(int(r.Destination.Port)))
+}
+
+func (r Resolution) DialAddresses() []string {
+	addresses := make([]string, 0, len(r.Resolved))
+	for _, addr := range r.Resolved {
+		addresses = append(addresses, net.JoinHostPort(addr.String(), strconv.Itoa(int(r.Destination.Port))))
+	}
+	return addresses
 }
 
 type Policy struct {

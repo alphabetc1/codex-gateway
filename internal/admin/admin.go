@@ -37,8 +37,29 @@ func NewHandler(options Options) http.Handler {
 			_, _ = fmt.Fprintf(w, "claude_gateway_destination_denied_total %d\n", snapshot.DestinationDenied)
 			_, _ = fmt.Fprintf(w, "claude_gateway_upstream_failures_total %d\n", snapshot.UpstreamFailures)
 			_, _ = fmt.Fprintf(w, "claude_gateway_bad_requests_total %d\n", snapshot.BadRequests)
+			writeHistogram(w, "claude_gateway_request_duration_seconds", snapshot.RequestDuration)
+			writeHistogram(w, "claude_gateway_upstream_setup_duration_seconds", snapshot.SetupDuration)
+			for _, host := range snapshot.Hosts {
+				_, _ = fmt.Fprintf(w, "claude_gateway_host_requests_total{host=%q} %d\n", host.Host, host.Requests)
+				_, _ = fmt.Fprintf(w, "claude_gateway_host_dial_attempts_total{host=%q} %d\n", host.Host, host.DialAttempts)
+				_, _ = fmt.Fprintf(w, "claude_gateway_host_request_duration_seconds_sum{host=%q} %.6f\n", host.Host, host.RequestDurationSum)
+				_, _ = fmt.Fprintf(w, "claude_gateway_host_request_duration_seconds_count{host=%q} %d\n", host.Host, host.Requests)
+				_, _ = fmt.Fprintf(w, "claude_gateway_host_upstream_setup_duration_seconds_sum{host=%q} %.6f\n", host.Host, host.SetupDurationSum)
+			}
 		})
 	}
 
 	return mux
+}
+
+func writeHistogram(w http.ResponseWriter, name string, snapshot proxy.HistogramSnapshot) {
+	for index, bucket := range snapshot.Buckets {
+		le := "+Inf"
+		if index < len(snapshot.Buckets)-1 {
+			le = fmt.Sprintf("%g", bucket.UpperBoundSeconds)
+		}
+		_, _ = fmt.Fprintf(w, "%s_bucket{le=%q} %d\n", name, le, bucket.Count)
+	}
+	_, _ = fmt.Fprintf(w, "%s_sum %.6f\n", name, snapshot.Sum)
+	_, _ = fmt.Fprintf(w, "%s_count %d\n", name, snapshot.Count)
 }

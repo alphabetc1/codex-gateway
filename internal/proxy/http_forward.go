@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
+	"time"
 )
 
 func (h *Handler) handleForwardHTTP(w http.ResponseWriter, r *http.Request, state *requestState, runtime *runtimeState) {
@@ -19,12 +20,13 @@ func (h *Handler) handleForwardHTTP(w http.ResponseWriter, r *http.Request, stat
 	}
 
 	state.audit.Destination = resolution.Destination.Authority()
-	state.audit.ResolvedIP = resolution.Selected.String()
+	setupStartedAt := time.Now()
 
 	outboundURL := cloneURL(r.URL)
 	outboundURL.Host = resolution.Destination.Authority()
 
-	outboundRequest := r.Clone(withResolvedDialTarget(r.Context(), resolution.DialAddress()))
+	trace := &dialTrace{}
+	outboundRequest := r.Clone(withResolvedDialTargets(r.Context(), resolution.DialAddresses(), trace))
 	outboundRequest.RequestURI = ""
 	outboundRequest.URL = outboundURL
 	outboundRequest.Host = r.Host
@@ -51,6 +53,13 @@ func (h *Handler) handleForwardHTTP(w http.ResponseWriter, r *http.Request, stat
 		return
 	}
 	defer response.Body.Close()
+	state.audit.UpstreamSetupDuration = time.Since(setupStartedAt)
+	state.audit.DialAttempts = trace.attempts
+	if selectedIP := dialAddressIP(trace.selectedAddress); selectedIP != "" {
+		state.audit.ResolvedIP = selectedIP
+	} else {
+		state.audit.ResolvedIP = resolution.Selected.String()
+	}
 
 	stripHopHeaders(response.Header)
 	copyHeaders(w.Header(), response.Header)

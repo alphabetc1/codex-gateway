@@ -75,6 +75,8 @@ systemctl --user status codex-gateway.service --no-pager
 
 这会生成 `.env`、`config/users.txt`、二进制和对应的 `systemd` 服务。
 
+如果你把这个代理给 `codex`、`claude code` 这类会并发开很多 HTTPS 隧道的 CLI 使用，不要把 `runtime.max_conns_per_ip` 设得太低。经验值建议从 `128` 起步；`16` 这类通用代理级别的限制很容易触发 429，然后在客户端重试时表现成“特别慢”。
+
 ### 2. Client 端选择一种接入方式
 
 两种方式都可以。区别在于：手动管理本地 tunnel 和代理环境变量，还是生成本地脚本。

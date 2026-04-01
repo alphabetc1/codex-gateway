@@ -79,6 +79,8 @@ If the VPS does not have a usable `systemd --user`, set `service_scope: system` 
 
 This writes `.env`, `config/users.txt`, the binary, and the matching `systemd` service.
 
+If you use this proxy for `codex`, `claude code`, or similar CLIs that open many concurrent HTTPS tunnels, do not keep `runtime.max_conns_per_ip` too low. A practical starting point is `128`; generic-proxy values such as `16` tend to trigger `429` responses and then show up as "slow" client retries.
+
 ### 2. Choose One Client-Side Entry Mode
 
 Both modes work. The difference is whether you manage the local tunnel and proxy env vars yourself or generate local helper files.

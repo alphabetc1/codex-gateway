@@ -3,10 +3,14 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"sort"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -18,7 +22,23 @@ import (
 
 type ctxKey int
 
-const resolvedDialTargetKey ctxKey = iota + 1
+const (
+	resolvedDialTargetsKey ctxKey = iota + 1
+	dialTraceKey
+)
+
+const metricOtherHost = "__other__"
+
+var metricDurationBuckets = []time.Duration{
+	100 * time.Millisecond,
+	250 * time.Millisecond,
+	500 * time.Millisecond,
+	time.Second,
+	2 * time.Second,
+	5 * time.Second,
+	10 * time.Second,
+	30 * time.Second,
+}
 
 type Metrics struct {
 	startedAt time.Time
@@ -31,6 +51,14 @@ type Metrics struct {
 	destinationDenied atomic.Uint64
 	upstreamFailures  atomic.Uint64
 	badRequests       atomic.Uint64
+
+	mu                    sync.Mutex
+	requestDurationCounts []uint64
+	setupDurationCounts   []uint64
+	requestDurationSum    float64
+	setupDurationSum      float64
+	setupDurationTotal    uint64
+	hostStats             map[string]*HostStats
 }
 
 type Snapshot struct {
@@ -43,10 +71,49 @@ type Snapshot struct {
 	DestinationDenied uint64
 	UpstreamFailures  uint64
 	BadRequests       uint64
+	RequestDuration   HistogramSnapshot
+	SetupDuration     HistogramSnapshot
+	Hosts             []HostSnapshot
+}
+
+type HistogramBucket struct {
+	UpperBoundSeconds float64
+	Count             uint64
+}
+
+type HistogramSnapshot struct {
+	Buckets []HistogramBucket
+	Sum     float64
+	Count   uint64
+}
+
+type HostSnapshot struct {
+	Host               string
+	Requests           uint64
+	DialAttempts       uint64
+	RequestDurationSum float64
+	SetupDurationSum   float64
+}
+
+type HostStats struct {
+	Requests           uint64
+	DialAttempts       uint64
+	RequestDurationSum float64
+	SetupDurationSum   float64
+}
+
+type dialTrace struct {
+	selectedAddress string
+	attempts        int
 }
 
 func NewMetrics() *Metrics {
-	return &Metrics{startedAt: time.Now().UTC()}
+	return &Metrics{
+		startedAt:             time.Now().UTC(),
+		requestDurationCounts: make([]uint64, len(metricDurationBuckets)+1),
+		setupDurationCounts:   make([]uint64, len(metricDurationBuckets)+1),
+		hostStats:             make(map[string]*HostStats),
+	}
 }
 
 func (m *Metrics) Record(event logging.AuditEvent) {
@@ -65,9 +132,61 @@ func (m *Metrics) Record(event logging.AuditEvent) {
 	case CategoryBadRequest:
 		m.badRequests.Add(1)
 	}
+
+	host := metricHost(event.Destination)
+	requestDurationSeconds := event.Duration.Seconds()
+	setupDurationSeconds := event.UpstreamSetupDuration.Seconds()
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	recordDurationBucket(m.requestDurationCounts, event.Duration)
+	m.requestDurationSum += requestDurationSeconds
+	if event.UpstreamSetupDuration > 0 {
+		recordDurationBucket(m.setupDurationCounts, event.UpstreamSetupDuration)
+		m.setupDurationSum += setupDurationSeconds
+		m.setupDurationTotal++
+	}
+
+	if host != "" {
+		stats := m.hostStats[host]
+		if stats == nil {
+			if len(m.hostStats) >= 64 {
+				host = metricOtherHost
+				stats = m.hostStats[host]
+			}
+			if stats == nil {
+				stats = &HostStats{}
+				m.hostStats[host] = stats
+			}
+		}
+		stats.Requests++
+		stats.DialAttempts += uint64(event.DialAttempts)
+		stats.RequestDurationSum += requestDurationSeconds
+		stats.SetupDurationSum += setupDurationSeconds
+	}
 }
 
 func (m *Metrics) Snapshot() Snapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	hosts := make([]HostSnapshot, 0, len(m.hostStats))
+	for host, stats := range m.hostStats {
+		hosts = append(hosts, HostSnapshot{
+			Host:               host,
+			Requests:           stats.Requests,
+			DialAttempts:       stats.DialAttempts,
+			RequestDurationSum: stats.RequestDurationSum,
+			SetupDurationSum:   stats.SetupDurationSum,
+		})
+	}
+	sort.Slice(hosts, func(i, j int) bool {
+		if hosts[i].Requests == hosts[j].Requests {
+			return hosts[i].Host < hosts[j].Host
+		}
+		return hosts[i].Requests > hosts[j].Requests
+	})
+
 	return Snapshot{
 		StartedAt:         m.startedAt,
 		TotalRequests:     m.totalRequests.Load(),
@@ -78,6 +197,9 @@ func (m *Metrics) Snapshot() Snapshot {
 		DestinationDenied: m.destinationDenied.Load(),
 		UpstreamFailures:  m.upstreamFailures.Load(),
 		BadRequests:       m.badRequests.Load(),
+		RequestDuration:   buildHistogramSnapshot(m.requestDurationCounts, m.requestDurationSum, m.totalRequests.Load()),
+		SetupDuration:     buildHistogramSnapshot(m.setupDurationCounts, m.setupDurationSum, m.setupDurationTotal),
+		Hosts:             hosts,
 	}
 }
 
@@ -273,14 +395,106 @@ func (h *Handler) writeProxyError(w http.ResponseWriter, state *requestState, er
 }
 
 func (h *Handler) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	if target, ok := ctx.Value(resolvedDialTargetKey).(string); ok && target != "" {
-		address = target
+	if targets, ok := ctx.Value(resolvedDialTargetsKey).([]string); ok && len(targets) > 0 {
+		conn, trace, err := h.dialResolvedTargets(ctx, network, targets)
+		if err != nil {
+			return nil, err
+		}
+		recordDialTrace(ctx, trace)
+		return conn, nil
 	}
 	return h.dialer.DialContext(ctx, network, address)
 }
 
-func withResolvedDialTarget(ctx context.Context, address string) context.Context {
-	return context.WithValue(ctx, resolvedDialTargetKey, address)
+func (h *Handler) dialResolvedTargets(ctx context.Context, network string, addresses []string) (net.Conn, dialTrace, error) {
+	if len(addresses) == 0 {
+		return nil, dialTrace{}, errors.New("no dial targets")
+	}
+
+	var lastErr error
+	for index, address := range addresses {
+		conn, err := h.dialer.DialContext(ctx, network, address)
+		if err == nil {
+			return conn, dialTrace{selectedAddress: address, attempts: index + 1}, nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			return nil, dialTrace{}, ctx.Err()
+		}
+	}
+	return nil, dialTrace{}, lastErr
+}
+
+func withResolvedDialTargets(ctx context.Context, addresses []string, trace *dialTrace) context.Context {
+	ctx = context.WithValue(ctx, resolvedDialTargetsKey, append([]string(nil), addresses...))
+	return context.WithValue(ctx, dialTraceKey, trace)
+}
+
+func recordDialTrace(ctx context.Context, trace dialTrace) {
+	recorded, ok := ctx.Value(dialTraceKey).(*dialTrace)
+	if !ok || recorded == nil {
+		return
+	}
+	*recorded = trace
+}
+
+func dialAddressIP(address string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return ""
+	}
+	return strings.Trim(host, "[]")
+}
+
+func recordDurationBucket(counts []uint64, duration time.Duration) {
+	index := len(metricDurationBuckets)
+	for i, bound := range metricDurationBuckets {
+		if duration <= bound {
+			index = i
+			break
+		}
+	}
+	counts[index]++
+}
+
+func buildHistogramSnapshot(counts []uint64, sum float64, total uint64) HistogramSnapshot {
+	buckets := make([]HistogramBucket, 0, len(counts))
+	cumulative := uint64(0)
+	for i, count := range counts {
+		cumulative += count
+		upperBound := "+Inf"
+		if i < len(metricDurationBuckets) {
+			upperBound = formatMetricFloat(metricDurationBuckets[i].Seconds())
+		}
+		value := 0.0
+		if upperBound != "+Inf" {
+			value = metricDurationBuckets[i].Seconds()
+		}
+		buckets = append(buckets, HistogramBucket{
+			UpperBoundSeconds: value,
+			Count:             cumulative,
+		})
+	}
+	return HistogramSnapshot{
+		Buckets: buckets,
+		Sum:     sum,
+		Count:   total,
+	}
+}
+
+func metricHost(destination string) string {
+	if destination == "" {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(destination)
+	if err == nil {
+		return netutil.NormalizeHost(host)
+	}
+	return netutil.NormalizeHost(destination)
+}
+
+func formatMetricFloat(value float64) string {
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", value), "0"), ".")
 }
 
 func classifyTransportError(err error) *HandlerError {

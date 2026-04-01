@@ -185,7 +185,7 @@ func normalizeVPSConfig(spec VPSConfig) (VPSConfig, error) {
 		runtime.DestSuffixAllowlist = []string{".claude.ai", ".claude.com", ".anthropic.com", ".openai.com", ".openrouter.ai", ".chatgpt.com"}
 	}
 	if runtime.MaxConnsPerIP == 0 {
-		runtime.MaxConnsPerIP = 16
+		runtime.MaxConnsPerIP = 128
 	}
 	if runtime.ServerReadHeaderTimeout == "" {
 		runtime.ServerReadHeaderTimeout = "10s"

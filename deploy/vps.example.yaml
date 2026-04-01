@@ -30,7 +30,7 @@ runtime:
     - .openai.com
     - .openrouter.ai
     - .chatgpt.com
-  max_conns_per_ip: 16
+  max_conns_per_ip: 128
   server_read_header_timeout: 10s
   server_idle_timeout: 90s
   upstream_dial_timeout: 10s

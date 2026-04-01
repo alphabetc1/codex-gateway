@@ -120,6 +120,40 @@ func TestHTTPForwardAbsoluteFormAndHopHeaders(t *testing.T) {
 	}
 }
 
+func TestHTTPForwardFallsBackToNextResolvedAddress(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("fallback-ok"))
+	}))
+	defer upstream.Close()
+
+	addr, port := listenerAddrPort(t, upstream.Listener.Addr())
+	server, _, auditLogs := startProxyServer(t, proxyTestOptions{
+		resolver: staticResolver{
+			testHostName: {
+				netip.MustParseAddr("127.0.0.2"),
+				addr,
+			},
+		},
+		allowedHosts:     map[string]struct{}{testHostName: {}},
+		allowedPorts:     []uint16{port},
+		allowPrivate:     true,
+		maxConns:         4,
+		accessLogEnabled: true,
+	})
+
+	response := doRawHTTP(t, proxyAddress(server), rawForwardRequest(port))
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	if body := strings.TrimSpace(response.Body); body != "fallback-ok" {
+		t.Fatalf("body = %q, want %q", body, "fallback-ok")
+	}
+	if !strings.Contains(auditLogs.String(), "\"resolved_ip\":\""+addr.String()+"\"") {
+		t.Fatalf("audit log missing fallback resolved ip %q: %s", addr.String(), auditLogs.String())
+	}
+}
+
 func TestConcurrencyLimitReturns429(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})

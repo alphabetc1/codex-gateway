@@ -17,7 +17,7 @@ const (
 	defaultProxyListenPort               = 8080
 	defaultAdminListenAddr               = "127.0.0.1"
 	defaultAdminListenPort               = 9090
-	defaultMaxConnsPerIP                 = 32
+	defaultMaxConnsPerIP                 = 128
 	defaultReadHeaderTimeout             = 10 * time.Second
 	defaultIdleTimeout                   = 90 * time.Second
 	defaultUpstreamDialTimeout           = 10 * time.Second

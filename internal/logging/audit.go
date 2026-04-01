@@ -7,20 +7,22 @@ import (
 )
 
 type AuditEvent struct {
-	RequestID     string
-	StartedAt     time.Time
-	SourceIP      string
-	Username      string
-	Method        string
-	Destination   string
-	ResolvedIP    string
-	ProxyStatus   int
-	UpstreamStatus int
-	BytesUp       int64
-	BytesDown     int64
-	Duration      time.Duration
-	ErrorCategory string
-	CloseReason   string
+	RequestID             string
+	StartedAt             time.Time
+	SourceIP              string
+	Username              string
+	Method                string
+	Destination           string
+	ResolvedIP            string
+	ProxyStatus           int
+	UpstreamStatus        int
+	BytesUp               int64
+	BytesDown             int64
+	Duration              time.Duration
+	UpstreamSetupDuration time.Duration
+	DialAttempts          int
+	ErrorCategory         string
+	CloseReason           string
 }
 
 func (e AuditEvent) Log(ctx context.Context, logger *slog.Logger) {
@@ -34,6 +36,12 @@ func (e AuditEvent) Log(ctx context.Context, logger *slog.Logger) {
 		"bytes_up", e.BytesUp,
 		"bytes_down", e.BytesDown,
 		"duration_ms", e.Duration.Milliseconds(),
+	}
+	if e.UpstreamSetupDuration > 0 {
+		attrs = append(attrs, "upstream_setup_ms", e.UpstreamSetupDuration.Milliseconds())
+	}
+	if e.DialAttempts > 0 {
+		attrs = append(attrs, "dial_attempts", e.DialAttempts)
 	}
 	if e.Username != "" {
 		attrs = append(attrs, "username", e.Username)

@@ -26,14 +26,21 @@ func (h *Handler) handleConnect(w http.ResponseWriter, r *http.Request, state *r
 	}
 
 	state.audit.Destination = resolution.Destination.Authority()
-	state.audit.ResolvedIP = resolution.Selected.String()
+	setupStartedAt := time.Now()
 
-	upstreamConn, err := h.dialer.DialContext(r.Context(), "tcp", resolution.DialAddress())
+	upstreamConn, trace, err := h.dialResolvedTargets(r.Context(), "tcp", resolution.DialAddresses())
 	if err != nil {
 		h.writeProxyError(w, state, classifyTransportError(err))
 		return
 	}
 	defer upstreamConn.Close()
+	state.audit.UpstreamSetupDuration = time.Since(setupStartedAt)
+	state.audit.DialAttempts = trace.attempts
+	if selectedIP := dialAddressIP(trace.selectedAddress); selectedIP != "" {
+		state.audit.ResolvedIP = selectedIP
+	} else {
+		state.audit.ResolvedIP = resolution.Selected.String()
+	}
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
