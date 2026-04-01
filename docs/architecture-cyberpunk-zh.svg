@@ -117,28 +117,28 @@
   </g>
 
   <g transform="translate(70 210)">
-    <path d="M 0 28 L 28 0 H 382 L 410 28 V 586 L 382 614 H 28 L 0 586 Z" fill="url(#panelCyan)" stroke="#29d8ff" stroke-width="2" filter="url(#glowCyan)"/>
-    <path d="M 0 88 H 410" stroke="#29d8ff" stroke-opacity="0.35" stroke-width="1.5"/>
-    <rect x="282" y="28" width="96" height="22" rx="11" fill="#07131d" stroke="#48e2ff" stroke-opacity="0.48"/>
+    <path d="M 0 28 L 28 0 H 322 L 350 28 V 586 L 322 614 H 28 L 0 586 Z" fill="url(#panelCyan)" stroke="#29d8ff" stroke-width="2" filter="url(#glowCyan)"/>
+    <path d="M 0 88 H 350" stroke="#29d8ff" stroke-opacity="0.35" stroke-width="1.5"/>
+    <rect x="226" y="28" width="96" height="22" rx="11" fill="#07131d" stroke="#48e2ff" stroke-opacity="0.48"/>
     <text x="28" y="46" fill="#95f4ff" class="mono panel-tag">LOCAL // 本地入口</text>
-    <text x="330" y="43" fill="#7aefff" class="mono micro" text-anchor="middle">LOCAL LOOP</text>
+    <text x="274" y="43" fill="#7aefff" class="mono micro" text-anchor="middle">LOCAL LOOP</text>
     <text x="28" y="72" fill="#dffcff" class="sans panel-note">代理感知 CLI 只看到一个本地入口</text>
 
-    <rect x="28" y="124" width="354" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <rect x="28" y="124" width="294" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
     <text x="48" y="162" fill="#ffffff" class="sans node-title">LLM CLI</text>
     <text x="48" y="194" fill="#a9eaff" class="sans node-copy">Claude Code / Codex / 其他 CLI</text>
     <text x="48" y="220" fill="#7bdfff" class="mono node-meta">只连本地 HTTP(S)_PROXY</text>
 
-    <path d="M 205 246 V 286" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
+    <path d="M 175 246 V 286" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
 
-    <rect x="28" y="286" width="354" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <rect x="28" y="286" width="294" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
     <text x="48" y="324" fill="#ffffff" class="sans node-title">Proxy Wrapper</text>
     <text x="48" y="356" fill="#a9eaff" class="sans node-copy">启动时注入代理环境变量</text>
     <text x="48" y="382" fill="#7bdfff" class="mono node-meta">统一本地入口，不暴露远端拓扑</text>
 
-    <path d="M 205 408 V 448" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
+    <path d="M 175 408 V 448" stroke="#73edff" stroke-width="3" stroke-linecap="round" filter="url(#glowCyan)"/>
 
-    <rect x="28" y="448" width="354" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
+    <rect x="28" y="448" width="294" height="122" rx="16" fill="url(#nodeCyan)" stroke="#67efff" stroke-width="1.6"/>
     <text x="48" y="486" fill="#ffffff" class="sans node-title">SSH Tunnel</text>
     <text x="48" y="516" fill="#a9eaff" class="sans node-copy">
       <tspan x="48" y="516">127.0.0.1:8080</tspan>
@@ -147,70 +147,78 @@
     <text x="48" y="562" fill="#7bdfff" class="mono node-meta">SSH 加密跳板，默认不暴露公网</text>
   </g>
 
-  <g transform="translate(520 170)">
-    <path d="M 0 28 L 28 0 H 502 L 530 28 V 666 L 502 694 H 28 L 0 666 Z" fill="url(#panelPink)" stroke="#ff4fd8" stroke-width="2.2" filter="url(#glowPink)"/>
-    <path d="M 0 96 H 530" stroke="#ff4fd8" stroke-opacity="0.36" stroke-width="1.5"/>
-    <rect x="388" y="28" width="112" height="22" rx="11" fill="#180b28" stroke="#ff76e2" stroke-opacity="0.48"/>
+  <g transform="translate(535 170)">
+    <path d="M 0 28 L 28 0 H 482 L 510 28 V 666 L 482 694 H 28 L 0 666 Z" fill="url(#panelPink)" stroke="#ff4fd8" stroke-width="2.2" filter="url(#glowPink)"/>
+    <path d="M 0 96 H 510" stroke="#ff4fd8" stroke-opacity="0.36" stroke-width="1.5"/>
+    <rect x="358" y="28" width="112" height="22" rx="11" fill="#180b28" stroke="#ff76e2" stroke-opacity="0.48"/>
     <text x="30" y="46" fill="#ffbaf2" class="mono panel-tag">VPS // 出口控制核心</text>
-    <text x="444" y="43" fill="#ffbaf2" class="mono micro" text-anchor="middle">CONTROL CORE</text>
+    <text x="414" y="43" fill="#ffbaf2" class="mono micro" text-anchor="middle">CONTROL CORE</text>
     <text x="30" y="74" fill="#ffe2fb" class="sans panel-note">出网、鉴权、约束、审计全部收口到这里</text>
 
-    <rect x="30" y="126" width="470" height="136" rx="18" fill="#1b0f31" stroke="#ff7be6" stroke-width="1.8"/>
+    <rect x="30" y="126" width="450" height="136" rx="18" fill="#1b0f31" stroke="#ff7be6" stroke-width="1.8"/>
     <text x="56" y="168" fill="#ffffff" class="sans node-title">codex-gateway</text>
     <text x="56" y="204" fill="#f4c6ff" class="sans node-copy">显式代理核心 / HTTP + CONNECT</text>
     <text x="56" y="232" fill="#d99df3" class="mono node-meta">单二进制，接住标准代理流量</text>
 
-    <path d="M 264 262 V 318" stroke="#ff79e5" stroke-width="3" stroke-linecap="round" filter="url(#glowPink)"/>
+    <path d="M 255 262 V 318" stroke="#ff79e5" stroke-width="3" stroke-linecap="round" filter="url(#glowPink)"/>
 
-    <rect x="30" y="318" width="470" height="164" rx="18" fill="url(#nodeGreen)" stroke="#19f5b3" stroke-width="1.8"/>
+    <rect x="30" y="318" width="450" height="164" rx="18" fill="url(#nodeGreen)" stroke="#19f5b3" stroke-width="1.8"/>
     <text x="56" y="358" fill="#ffffff" class="sans node-title">Policy Gate</text>
     <text x="56" y="392" fill="#b9fff0" class="sans node-copy">Basic Auth / 源 IP / 并发限制</text>
     <text x="56" y="420" fill="#9ff9e4" class="sans node-copy">目标 Host / Suffix / Port</text>
     <text x="56" y="448" fill="#7be9cf" class="sans node-copy">DNS 二次校验，默认拒绝私网</text>
 
-    <rect x="30" y="516" width="470" height="128" rx="18" fill="url(#nodeViolet)" stroke="#b388ff" stroke-width="1.7"/>
+    <rect x="30" y="516" width="450" height="128" rx="18" fill="url(#nodeViolet)" stroke="#b388ff" stroke-width="1.7"/>
     <text x="56" y="556" fill="#ffffff" class="sans node-title">Audit Surface</text>
     <text x="56" y="590" fill="#ead7ff" class="sans node-copy">JSON 审计日志 /healthz /metrics</text>
     <text x="56" y="616" fill="#ccb0ff" class="mono node-meta">决策、失败、状态都留在你这边</text>
   </g>
 
-  <g transform="translate(1120 210)">
-    <path d="M 0 28 L 28 0 H 382 L 410 28 V 586 L 382 614 H 28 L 0 586 Z" fill="url(#panelAmber)" stroke="#ffb84d" stroke-width="2" filter="url(#glowAmber)"/>
-    <path d="M 0 88 H 410" stroke="#ffb84d" stroke-opacity="0.35" stroke-width="1.5"/>
-    <rect x="262" y="28" width="110" height="22" rx="11" fill="#241308" stroke="#ffcf82" stroke-opacity="0.48"/>
+  <g transform="translate(1160 210)">
+    <path d="M 0 28 L 28 0 H 342 L 370 28 V 586 L 342 614 H 28 L 0 586 Z" fill="url(#panelAmber)" stroke="#ffb84d" stroke-width="2" filter="url(#glowAmber)"/>
+    <path d="M 0 88 H 370" stroke="#ffb84d" stroke-opacity="0.35" stroke-width="1.5"/>
+    <rect x="232" y="28" width="110" height="22" rx="11" fill="#241308" stroke="#ffcf82" stroke-opacity="0.48"/>
     <text x="28" y="46" fill="#ffd699" class="mono panel-tag">UPSTREAM // 模型服务</text>
-    <text x="317" y="43" fill="#ffd699" class="mono micro" text-anchor="middle">EGRESS LIST</text>
+    <text x="287" y="43" fill="#ffd699" class="mono micro" text-anchor="middle">EGRESS LIST</text>
     <text x="28" y="72" fill="#fff0d2" class="sans panel-note">只放行允许的目标域名和端口</text>
 
-    <rect x="28" y="132" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
+    <rect x="28" y="132" width="314" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
     <text x="48" y="170" fill="#ffffff" class="sans node-title">Anthropic</text>
     <text x="48" y="198" fill="#ffdca3" class="sans provider-meta">.anthropic.com</text>
 
-    <rect x="28" y="258" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
+    <rect x="28" y="258" width="314" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
     <text x="48" y="296" fill="#ffffff" class="sans node-title">OpenAI</text>
-    <text x="48" y="324" fill="#ffdca3" class="sans provider-meta">.openai.com / .chatgpt.com</text>
+    <text x="48" y="324" fill="#ffdca3" class="sans provider-meta">
+      <tspan x="48" y="324">.openai.com</tspan>
+      <tspan x="48" dy="22">.chatgpt.com</tspan>
+    </text>
 
-    <rect x="28" y="384" width="354" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
+    <rect x="28" y="384" width="314" height="96" rx="16" fill="url(#nodeAmber)" stroke="#ffc76b" stroke-width="1.6"/>
     <text x="48" y="422" fill="#ffffff" class="sans node-title">OpenRouter</text>
     <text x="48" y="450" fill="#ffdca3" class="sans provider-meta">.openrouter.ai</text>
 
-    <rect x="28" y="510" width="354" height="56" rx="14" fill="#2b1908" stroke="#ffcf82" stroke-dasharray="6 8" stroke-width="1.4"/>
+    <rect x="28" y="510" width="314" height="56" rx="14" fill="#2b1908" stroke="#ffcf82" stroke-dasharray="6 8" stroke-width="1.4"/>
     <text x="48" y="545" fill="#ffdfac" class="sans provider-meta">默认最小放行，可按需扩展</text>
   </g>
 
   <g fill="none" stroke-linecap="round">
-    <path d="M 478 520 C 515 520, 520 520, 552 520" stroke="#6ee7f9" stroke-width="4" marker-end="url(#arrowCyan)" filter="url(#glowCyan)"/>
-    <path d="M 1052 520 C 1090 520, 1100 520, 1134 520" stroke="#ffb84d" stroke-width="4" marker-end="url(#arrowAmber)" filter="url(#glowAmber)"/>
+    <path d="M 392 669 C 438 669, 489 669, 535 669" stroke="#6ee7f9" stroke-width="4" marker-end="url(#arrowCyan)" filter="url(#glowCyan)"/>
+    <path d="M 1015 570 C 1062 570, 1112 570, 1160 570" stroke="#ffb84d" stroke-width="4" marker-end="url(#arrowAmber)" filter="url(#glowAmber)"/>
   </g>
 
   <g>
-    <text x="606" y="498" fill="#9bf0ff" class="mono flow-label">SSH TUNNEL</text>
-    <text x="1154" y="498" fill="#ffd699" class="mono flow-label">ALLOWLIST EGRESS</text>
+    <rect x="430" y="640" width="96" height="40" rx="20" fill="#07131d" fill-opacity="0.92" stroke="#67efff" stroke-opacity="0.78" stroke-width="1.4"/>
+    <text x="478" y="657" fill="#9bf0ff" class="mono micro" text-anchor="middle">SSH</text>
+    <text x="478" y="672" fill="#9bf0ff" class="mono micro" text-anchor="middle">TUNNEL</text>
+
+    <rect x="1054" y="541" width="98" height="40" rx="20" fill="#241308" fill-opacity="0.94" stroke="#ffcf82" stroke-opacity="0.82" stroke-width="1.4"/>
+    <text x="1103" y="558" fill="#ffd699" class="mono micro" text-anchor="middle">ALLOWLIST</text>
+    <text x="1103" y="573" fill="#ffd699" class="mono micro" text-anchor="middle">EGRESS</text>
   </g>
 
   <g opacity="0.65">
-    <circle cx="504" cy="520" r="5" fill="#6ee7f9" filter="url(#glowCyan)"/>
-    <circle cx="1058" cy="520" r="5" fill="#ffb84d" filter="url(#glowAmber)"/>
+    <circle cx="392" cy="669" r="5" fill="#6ee7f9" filter="url(#glowCyan)"/>
+    <circle cx="1015" cy="570" r="5" fill="#ffb84d" filter="url(#glowAmber)"/>
   </g>
 
   <g>
