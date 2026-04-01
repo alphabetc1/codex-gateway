@@ -1,8 +1,12 @@
 package admin
 
 import (
+	"codex-gateway/internal/auth"
+	"codex-gateway/internal/claudeoauth"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"codex-gateway/internal/proxy"
@@ -12,6 +16,39 @@ type Options struct {
 	MetricsEnabled bool
 	Metrics        *proxy.Metrics
 	Version        string
+	Runtime        *Runtime
+}
+
+type Runtime struct {
+	authStore atomic.Value
+	broker    *claudeoauth.Broker
+}
+
+func NewRuntime(store auth.UserStore, broker *claudeoauth.Broker) *Runtime {
+	runtime := &Runtime{broker: broker}
+	if store != nil {
+		runtime.authStore.Store(store)
+	}
+	return runtime
+}
+
+func (r *Runtime) UpdateAuthStore(store auth.UserStore) {
+	if r == nil || store == nil {
+		return
+	}
+	r.authStore.Store(store)
+}
+
+func (r *Runtime) currentAuthStore() auth.UserStore {
+	if r == nil {
+		return nil
+	}
+	value := r.authStore.Load()
+	if value == nil {
+		return nil
+	}
+	store, _ := value.(auth.UserStore)
+	return store
 }
 
 func NewHandler(options Options) http.Handler {
@@ -49,6 +86,33 @@ func NewHandler(options Options) http.Handler {
 		})
 	}
 
+	if options.Runtime != nil && options.Runtime.broker != nil {
+		mux.HandleFunc("/claude/oauth/health", func(w http.ResponseWriter, r *http.Request) {
+			if !requireAdminAuth(w, r, options.Runtime.currentAuthStore()) {
+				return
+			}
+			status := options.Runtime.broker.Status()
+			httpStatus := http.StatusOK
+			if status.Enabled && !status.Ready {
+				httpStatus = http.StatusServiceUnavailable
+			}
+			writeJSON(w, httpStatus, status)
+		})
+		mux.HandleFunc("/claude/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+			if !requireAdminAuth(w, r, options.Runtime.currentAuthStore()) {
+				return
+			}
+			token, err := options.Runtime.broker.GetToken(r.Context())
+			if err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+					"error": err.Error(),
+				})
+				return
+			}
+			writeJSON(w, http.StatusOK, token)
+		})
+	}
+
 	return mux
 }
 
@@ -62,4 +126,43 @@ func writeHistogram(w http.ResponseWriter, name string, snapshot proxy.Histogram
 	}
 	_, _ = fmt.Fprintf(w, "%s_sum %.6f\n", name, snapshot.Sum)
 	_, _ = fmt.Fprintf(w, "%s_count %d\n", name, snapshot.Count)
+}
+
+func requireAdminAuth(w http.ResponseWriter, r *http.Request, store auth.UserStore) bool {
+	if store == nil {
+		http.Error(w, "admin auth store unavailable", http.StatusServiceUnavailable)
+		return false
+	}
+
+	headerValue := r.Header.Get("Authorization")
+	if headerValue == "" {
+		headerValue = r.Header.Get("Proxy-Authorization")
+	}
+	credentials, err := auth.ParseProxyAuthorization(headerValue)
+	if err != nil {
+		writeAdminAuthRequired(w)
+		return false
+	}
+
+	ok, err := store.Authenticate(credentials.Username, credentials.Password)
+	if err != nil {
+		http.Error(w, "admin authentication failed", http.StatusInternalServerError)
+		return false
+	}
+	if !ok {
+		writeAdminAuthRequired(w)
+		return false
+	}
+	return true
+}
+
+func writeAdminAuthRequired(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="codex-gateway-admin"`)
+	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
 }

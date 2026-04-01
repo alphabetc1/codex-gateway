@@ -1,6 +1,8 @@
 # Copy to deploy/client.yaml and adjust values before running:
 #   go run ./cmd/codex-gateway deploy client
 
+project_root: .
+mode: proxy
 service_name: codex-gateway-tunnel
 wrapper_name: codex-gateway-proxy
 # Optional: set to "system" for a system-level tunnel service when running as root.
@@ -42,3 +44,40 @@ proxy:
 #       host: vps-2.example.com
 #     tunnel:
 #       local_port: 8081
+
+# Optional: Claude Code rewrite mode.
+# Set mode: claude or mode: both to enable it.
+#
+# claude_code:
+#   service_name: codex-gateway-claude-client
+#   wrapper_name: codex-gateway-claude
+#   admin_service_name: codex-gateway-admin-tunnel
+#   listen_host: 127.0.0.1
+#   listen_port: 11443
+#   admin_local_host: 127.0.0.1
+#   admin_local_port: 19090
+#   admin_remote_host: 127.0.0.1
+#   admin_remote_port: 9090
+#   upstream_url: https://api.anthropic.com
+#   identity:
+#     device_id: your-canonical-device-id
+#     email: user@example.com
+#   env:
+#     platform: darwin
+#     platform_raw: darwin
+#     arch: arm64
+#     node_version: v24.3.0
+#     terminal: iTerm2.app
+#     package_managers: npm,pnpm
+#     runtimes: node
+#     is_claude_ai_auth: true
+#     version: "2.1.81"
+#     version_base: "2.1.81"
+#     build_time: "2026-03-20T21:26:18Z"
+#     deployment_environment: unknown-darwin
+#     vcs: git
+#   prompt_env:
+#     platform: darwin
+#     shell: zsh
+#     os_version: "Darwin 24.4.0"
+#     working_dir: /Users/jack/projects

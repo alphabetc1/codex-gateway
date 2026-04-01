@@ -36,6 +36,13 @@ func TestRenderVPSEnvUsesAbsoluteRuntimePaths(t *testing.T) {
 			LogLevel:                      "info",
 			LogFormat:                     "json",
 		},
+		ClaudeOAuth: VPSClaudeOAuth{
+			Enabled:      true,
+			RefreshToken: "refresh-token",
+			ClientID:     "client-id",
+			TokenURL:     "https://platform.claude.com/v1/oauth/token",
+			Scopes:       []string{"user:inference"},
+		},
 	}
 
 	content, err := RenderVPSEnv(spec)
@@ -51,6 +58,12 @@ func TestRenderVPSEnvUsesAbsoluteRuntimePaths(t *testing.T) {
 	}
 	if !strings.Contains(text, "DEST_HOST_ALLOWLIST=storage.googleapis.com") {
 		t.Fatalf("env missing host allowlist: %s", text)
+	}
+	if !strings.Contains(text, "CLAUDE_OAUTH_ENABLED=true") {
+		t.Fatalf("env missing claude oauth flag: %s", text)
+	}
+	if !strings.Contains(text, "CLAUDE_OAUTH_REFRESH_TOKEN=refresh-token") {
+		t.Fatalf("env missing claude oauth refresh token: %s", text)
 	}
 }
 
@@ -118,6 +131,129 @@ func TestRenderClientArtifacts(t *testing.T) {
 	serviceText := string(RenderClientService(spec))
 	if !strings.Contains(serviceText, "/usr/bin/ssh") || !strings.Contains(serviceText, "127.0.0.1:8080:127.0.0.1:8080") {
 		t.Fatalf("service missing ssh tunnel command: %s", serviceText)
+	}
+}
+
+func TestNormalizeClientConfigWithClaudeMode(t *testing.T) {
+	spec := ClientConfig{
+		ProjectRoot: ".",
+		Mode:        ClientModeBoth,
+		SSH: ClientSSH{
+			User: "admin",
+			Host: "your-vps.example.com",
+		},
+		Tunnel: ClientTunnel{
+			LocalHost:  "127.0.0.1",
+			LocalPort:  8080,
+			RemoteHost: "127.0.0.1",
+			RemotePort: 8080,
+		},
+		Proxy: ClientProxy{
+			Username: "alice",
+			Password: "secret",
+		},
+		ClaudeCode: ClientClaudeCode{
+			Identity: ClaudeIdentity{
+				DeviceID: "canonical-device",
+			},
+			Env: ClaudeEnvProfile{
+				Version: "2.1.81",
+			},
+			PromptEnv: ClaudePromptProfile{
+				WorkingDir: "/Users/jack/projects",
+			},
+		},
+	}
+
+	normalized, err := normalizeClientConfig(spec)
+	if err != nil {
+		t.Fatalf("normalizeClientConfig() error = %v", err)
+	}
+	if normalized.ClaudeCode.ListenPort != 11443 {
+		t.Fatalf("claude listen port = %d, want %d", normalized.ClaudeCode.ListenPort, 11443)
+	}
+	if normalized.ClaudeCode.AdminLocalPort != 19090 {
+		t.Fatalf("claude admin local port = %d, want %d", normalized.ClaudeCode.AdminLocalPort, 19090)
+	}
+	if normalized.ClaudeCode.BinaryOutput == "" {
+		t.Fatalf("claude binary output is empty")
+	}
+}
+
+func TestRenderClaudeClientArtifacts(t *testing.T) {
+	spec := ClientConfig{
+		InstallDir:  "/home/test/.config/codex-gateway",
+		ServiceName: "codex-gateway-tunnel",
+		WrapperName: "codex-gateway-proxy",
+		Mode:        ClientModeBoth,
+		SSH: ClientSSH{
+			User:                "admin",
+			Host:                "your-vps.example.com",
+			ServerAliveInterval: 60,
+			ServerAliveCountMax: 3,
+		},
+		Tunnel: ClientTunnel{
+			LocalHost:  "127.0.0.1",
+			LocalPort:  8080,
+			RemoteHost: "127.0.0.1",
+			RemotePort: 8080,
+		},
+		Proxy: ClientProxy{
+			Username: "alice",
+			Password: "secret",
+		},
+		ClaudeCode: ClientClaudeCode{
+			ServiceName:      "codex-gateway-claude-client",
+			WrapperName:      "codex-gateway-claude",
+			AdminServiceName: "codex-gateway-admin-tunnel",
+			ListenHost:       "127.0.0.1",
+			ListenPort:       11443,
+			AdminLocalHost:   "127.0.0.1",
+			AdminLocalPort:   19090,
+			AdminRemoteHost:  "127.0.0.1",
+			AdminRemotePort:  9090,
+			UpstreamURL:      "https://api.anthropic.com",
+			BinaryOutput:     "/home/test/.config/codex-gateway/bin/codex-gateway",
+			Identity: ClaudeIdentity{
+				DeviceID: "canonical-device",
+			},
+			Env: ClaudeEnvProfile{
+				Platform:    "darwin",
+				PlatformRaw: "darwin",
+				Version:     "2.1.81",
+				VersionBase: "2.1.81",
+			},
+			PromptEnv: ClaudePromptProfile{
+				Platform:   "darwin",
+				Shell:      "zsh",
+				OSVersion:  "Darwin 24.4.0",
+				WorkingDir: "/Users/jack/projects",
+			},
+			Process: ClaudeProcessProfile{
+				ConstrainedMemory: 34359738368,
+				RSSRange:          [2]int64{300000000, 500000000},
+				HeapTotalRange:    [2]int64{40000000, 80000000},
+				HeapUsedRange:     [2]int64{100000000, 200000000},
+			},
+		},
+	}
+
+	envText := string(RenderClaudeClientEnv(spec))
+	if !strings.Contains(envText, "ANTHROPIC_BASE_URL='http://127.0.0.1:11443'") {
+		t.Fatalf("claude env missing ANTHROPIC_BASE_URL: %s", envText)
+	}
+
+	configText, err := RenderClaudeClientConfig(spec, primaryClientEndpoint(spec))
+	if err != nil {
+		t.Fatalf("RenderClaudeClientConfig() error = %v", err)
+	}
+	if !strings.Contains(string(configText), "oauth_broker_url: http://127.0.0.1:19090/claude/oauth/token") {
+		t.Fatalf("claude config missing oauth broker url: %s", string(configText))
+	}
+
+	serviceText := string(RenderClaudeClientService(spec, "/home/test/.config/codex-gateway/claude-client.yaml", "codex-gateway-tunnel", "codex-gateway-admin-tunnel"))
+	if !strings.Contains(serviceText, "codex-gateway claude-client -config /home/test/.config/codex-gateway/claude-client.yaml") {
+		t.Fatalf("claude service missing ExecStart: %s", serviceText)
 	}
 }
 

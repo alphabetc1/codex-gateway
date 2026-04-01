@@ -110,6 +110,11 @@ func immutableConfigChanges(current, next config.Config) []string {
 	appendIfChanged("ALLOW_PUBLIC_ADMIN", current.AllowPublicAdmin != next.AllowPublicAdmin)
 	appendIfChanged("ALLOW_EMPTY_DEST_ALLOWLIST", current.AllowEmptyDestACL != next.AllowEmptyDestACL)
 	appendIfChanged("ALLOW_INSECURE_PUBLIC_PROXY", current.AllowInsecurePublicProxy != next.AllowInsecurePublicProxy)
+	appendIfChanged("CLAUDE_OAUTH_ENABLED", current.ClaudeOAuthEnabled != next.ClaudeOAuthEnabled)
+	appendIfChanged("CLAUDE_OAUTH_REFRESH_TOKEN", current.ClaudeOAuthRefreshToken != next.ClaudeOAuthRefreshToken)
+	appendIfChanged("CLAUDE_OAUTH_CLIENT_ID", current.ClaudeOAuthClientID != next.ClaudeOAuthClientID)
+	appendIfChanged("CLAUDE_OAUTH_SCOPES", !reflect.DeepEqual(current.ClaudeOAuthScopes, next.ClaudeOAuthScopes))
+	appendIfChanged("CLAUDE_OAUTH_TOKEN_URL", current.ClaudeOAuthTokenURL != next.ClaudeOAuthTokenURL)
 
 	return changes
 }
