@@ -19,6 +19,7 @@ type VPSConfig struct {
 	WriteOnly    bool              `yaml:"write_only"`
 	Users        []ProxyUser       `yaml:"users"`
 	Runtime      VPSRuntime        `yaml:"runtime"`
+	ClaudeOAuth  VPSClaudeOAuth    `yaml:"claude_oauth"`
 	EnvOverrides map[string]string `yaml:"env_overrides"`
 }
 
@@ -58,16 +59,27 @@ type VPSRuntime struct {
 	AllowInsecurePublicProxy      bool     `yaml:"allow_insecure_public_proxy"`
 }
 
+type VPSClaudeOAuth struct {
+	Enabled      bool     `yaml:"enabled"`
+	RefreshToken string   `yaml:"refresh_token"`
+	ClientID     string   `yaml:"client_id"`
+	TokenURL     string   `yaml:"token_url"`
+	Scopes       []string `yaml:"scopes"`
+}
+
 type ClientConfig struct {
+	ProjectRoot  string           `yaml:"project_root"`
 	InstallDir   string           `yaml:"install_dir"`
 	ServiceName  string           `yaml:"service_name"`
 	WrapperName  string           `yaml:"wrapper_name"`
 	ServiceScope string           `yaml:"service_scope"`
 	WriteOnly    bool             `yaml:"write_only"`
+	Mode         string           `yaml:"mode"`
 	SSH          ClientSSH        `yaml:"ssh"`
 	Tunnel       ClientTunnel     `yaml:"tunnel"`
 	Endpoints    []ClientEndpoint `yaml:"endpoints"`
 	Proxy        ClientProxy      `yaml:"proxy"`
+	ClaudeCode   ClientClaudeCode `yaml:"claude_code"`
 }
 
 type ClientEndpoint struct {
@@ -98,6 +110,67 @@ type ClientProxy struct {
 	Password string   `yaml:"password"`
 	NoProxy  []string `yaml:"no_proxy"`
 }
+
+type ClientClaudeCode struct {
+	ServiceName           string               `yaml:"service_name"`
+	WrapperName           string               `yaml:"wrapper_name"`
+	AdminServiceName      string               `yaml:"admin_service_name"`
+	ListenHost            string               `yaml:"listen_host"`
+	ListenPort            int                  `yaml:"listen_port"`
+	AdminLocalHost        string               `yaml:"admin_local_host"`
+	AdminLocalPort        int                  `yaml:"admin_local_port"`
+	AdminRemoteHost       string               `yaml:"admin_remote_host"`
+	AdminRemotePort       int                  `yaml:"admin_remote_port"`
+	UpstreamURL           string               `yaml:"upstream_url"`
+	BinaryOutput          string               `yaml:"binary_output"`
+	TLSInsecureSkipVerify bool                 `yaml:"tls_insecure_skip_verify"`
+	Identity              ClaudeIdentity       `yaml:"identity"`
+	Env                   ClaudeEnvProfile     `yaml:"env"`
+	PromptEnv             ClaudePromptProfile  `yaml:"prompt_env"`
+	Process               ClaudeProcessProfile `yaml:"process"`
+}
+
+type ClaudeIdentity struct {
+	DeviceID string `yaml:"device_id"`
+	Email    string `yaml:"email"`
+}
+
+type ClaudeEnvProfile struct {
+	Platform              string `yaml:"platform"`
+	PlatformRaw           string `yaml:"platform_raw"`
+	Arch                  string `yaml:"arch"`
+	NodeVersion           string `yaml:"node_version"`
+	Terminal              string `yaml:"terminal"`
+	PackageManagers       string `yaml:"package_managers"`
+	Runtimes              string `yaml:"runtimes"`
+	IsRunningWithBun      bool   `yaml:"is_running_with_bun"`
+	IsClaudeAIAuth        bool   `yaml:"is_claude_ai_auth"`
+	Version               string `yaml:"version"`
+	VersionBase           string `yaml:"version_base"`
+	BuildTime             string `yaml:"build_time"`
+	DeploymentEnvironment string `yaml:"deployment_environment"`
+	VCS                   string `yaml:"vcs"`
+}
+
+type ClaudePromptProfile struct {
+	Platform   string `yaml:"platform"`
+	Shell      string `yaml:"shell"`
+	OSVersion  string `yaml:"os_version"`
+	WorkingDir string `yaml:"working_dir"`
+}
+
+type ClaudeProcessProfile struct {
+	ConstrainedMemory int64    `yaml:"constrained_memory"`
+	RSSRange          [2]int64 `yaml:"rss_range"`
+	HeapTotalRange    [2]int64 `yaml:"heap_total_range"`
+	HeapUsedRange     [2]int64 `yaml:"heap_used_range"`
+}
+
+const (
+	ClientModeProxy  = "proxy"
+	ClientModeClaude = "claude"
+	ClientModeBoth   = "both"
+)
 
 func LoadVPSConfig(path string) (VPSConfig, error) {
 	var spec VPSConfig
@@ -215,6 +288,26 @@ func normalizeVPSConfig(spec VPSConfig) (VPSConfig, error) {
 		runtime.LogFormat = "json"
 	}
 	spec.Runtime = runtime
+	if spec.ClaudeOAuth.Enabled {
+		if strings.TrimSpace(spec.ClaudeOAuth.ClientID) == "" {
+			spec.ClaudeOAuth.ClientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+		}
+		if strings.TrimSpace(spec.ClaudeOAuth.TokenURL) == "" {
+			spec.ClaudeOAuth.TokenURL = "https://platform.claude.com/v1/oauth/token"
+		}
+		if len(spec.ClaudeOAuth.Scopes) == 0 {
+			spec.ClaudeOAuth.Scopes = []string{
+				"user:inference",
+				"user:profile",
+				"user:sessions:claude_code",
+				"user:mcp_servers",
+				"user:file_upload",
+			}
+		}
+		if strings.TrimSpace(spec.ClaudeOAuth.RefreshToken) == "" {
+			return VPSConfig{}, fmt.Errorf("claude_oauth.refresh_token is required when claude_oauth.enabled=true")
+		}
+	}
 
 	if len(spec.Users) == 0 {
 		return VPSConfig{}, fmt.Errorf("at least one proxy user is required")
@@ -232,9 +325,19 @@ func normalizeVPSConfig(spec VPSConfig) (VPSConfig, error) {
 }
 
 func normalizeClientConfig(spec ClientConfig) (ClientConfig, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ClientConfig{}, fmt.Errorf("getwd: %w", err)
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ClientConfig{}, fmt.Errorf("home dir: %w", err)
+	}
+	if strings.TrimSpace(spec.ProjectRoot) == "" {
+		spec.ProjectRoot = cwd
+	}
+	if !filepath.IsAbs(spec.ProjectRoot) {
+		spec.ProjectRoot = filepath.Join(cwd, spec.ProjectRoot)
 	}
 	if strings.TrimSpace(spec.InstallDir) == "" {
 		spec.InstallDir = filepath.Join(home, ".config", "codex-gateway")
@@ -247,6 +350,10 @@ func normalizeClientConfig(spec ClientConfig) (ClientConfig, error) {
 	}
 	if strings.TrimSpace(spec.WrapperName) == "" {
 		spec.WrapperName = "codex-gateway-proxy"
+	}
+	spec.Mode, err = normalizeClientMode(spec.Mode)
+	if err != nil {
+		return ClientConfig{}, err
 	}
 	spec.ServiceScope, err = normalizeServiceScope(spec.ServiceScope)
 	if err != nil {
@@ -267,6 +374,21 @@ func normalizeClientConfig(spec ClientConfig) (ClientConfig, error) {
 	spec.Endpoints = endpoints
 	spec.SSH = endpoints[0].SSH
 	spec.Tunnel = endpoints[0].Tunnel
+	if clientModeIncludes(spec.Mode, ClientModeClaude) {
+		if len(spec.Endpoints) > 1 {
+			return ClientConfig{}, fmt.Errorf("claude mode currently supports a single endpoint")
+		}
+		spec.ClaudeCode = normalizeClientClaudeCode(spec)
+		if strings.TrimSpace(spec.ClaudeCode.Identity.DeviceID) == "" {
+			return ClientConfig{}, fmt.Errorf("claude_code.identity.device_id is required when mode includes claude")
+		}
+		if strings.TrimSpace(spec.ClaudeCode.Env.Version) == "" {
+			return ClientConfig{}, fmt.Errorf("claude_code.env.version is required when mode includes claude")
+		}
+		if strings.TrimSpace(spec.ClaudeCode.PromptEnv.WorkingDir) == "" {
+			return ClientConfig{}, fmt.Errorf("claude_code.prompt_env.working_dir is required when mode includes claude")
+		}
+	}
 
 	return spec, nil
 }
@@ -452,4 +574,85 @@ func normalizeClientEndpointName(raw string, index int) (string, error) {
 		return "", fmt.Errorf("endpoint name %q is empty after normalization", raw)
 	}
 	return name, nil
+}
+
+func normalizeClientMode(raw string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", ClientModeProxy:
+		return ClientModeProxy, nil
+	case ClientModeClaude:
+		return ClientModeClaude, nil
+	case ClientModeBoth:
+		return ClientModeBoth, nil
+	default:
+		return "", fmt.Errorf("unsupported mode %q; expected %q, %q, or %q", raw, ClientModeProxy, ClientModeClaude, ClientModeBoth)
+	}
+}
+
+func clientModeIncludes(mode, target string) bool {
+	if mode == ClientModeBoth {
+		return true
+	}
+	return mode == target
+}
+
+func normalizeClientClaudeCode(spec ClientConfig) ClientClaudeCode {
+	claude := spec.ClaudeCode
+	if strings.TrimSpace(claude.ServiceName) == "" {
+		claude.ServiceName = "codex-gateway-claude-client"
+	}
+	if strings.TrimSpace(claude.WrapperName) == "" {
+		claude.WrapperName = "codex-gateway-claude"
+	}
+	if strings.TrimSpace(claude.AdminServiceName) == "" {
+		claude.AdminServiceName = "codex-gateway-admin-tunnel"
+	}
+	if strings.TrimSpace(claude.ListenHost) == "" {
+		claude.ListenHost = "127.0.0.1"
+	}
+	if claude.ListenPort == 0 {
+		claude.ListenPort = 11443
+	}
+	if strings.TrimSpace(claude.AdminLocalHost) == "" {
+		claude.AdminLocalHost = "127.0.0.1"
+	}
+	if claude.AdminLocalPort == 0 {
+		claude.AdminLocalPort = 19090
+	}
+	if strings.TrimSpace(claude.AdminRemoteHost) == "" {
+		claude.AdminRemoteHost = "127.0.0.1"
+	}
+	if claude.AdminRemotePort == 0 {
+		claude.AdminRemotePort = 9090
+	}
+	if strings.TrimSpace(claude.UpstreamURL) == "" {
+		claude.UpstreamURL = "https://api.anthropic.com"
+	}
+	if strings.TrimSpace(claude.BinaryOutput) == "" {
+		claude.BinaryOutput = filepath.Join(spec.InstallDir, "bin", "codex-gateway")
+	} else if !filepath.IsAbs(claude.BinaryOutput) {
+		claude.BinaryOutput = filepath.Join(spec.InstallDir, claude.BinaryOutput)
+	}
+	if strings.TrimSpace(claude.Env.PlatformRaw) == "" {
+		claude.Env.PlatformRaw = claude.Env.Platform
+	}
+	if strings.TrimSpace(claude.Env.VersionBase) == "" {
+		claude.Env.VersionBase = claude.Env.Version
+	}
+	if !claude.Env.IsClaudeAIAuth {
+		claude.Env.IsClaudeAIAuth = true
+	}
+	if claude.Process.ConstrainedMemory == 0 {
+		claude.Process.ConstrainedMemory = 34359738368
+	}
+	if claude.Process.RSSRange == [2]int64{} {
+		claude.Process.RSSRange = [2]int64{300000000, 500000000}
+	}
+	if claude.Process.HeapTotalRange == [2]int64{} {
+		claude.Process.HeapTotalRange = [2]int64{40000000, 80000000}
+	}
+	if claude.Process.HeapUsedRange == [2]int64{} {
+		claude.Process.HeapUsedRange = [2]int64{100000000, 200000000}
+	}
+	return claude
 }

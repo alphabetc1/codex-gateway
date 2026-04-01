@@ -1,6 +1,7 @@
 package config
 
 import (
+	"codex-gateway/internal/claudeoauth"
 	"errors"
 	"fmt"
 	"net"
@@ -64,6 +65,12 @@ type Config struct {
 	AllowEmptyDestACL bool
 
 	AllowInsecurePublicProxy bool
+
+	ClaudeOAuthEnabled      bool
+	ClaudeOAuthRefreshToken string
+	ClaudeOAuthClientID     string
+	ClaudeOAuthScopes       []string
+	ClaudeOAuthTokenURL     string
 }
 
 func LoadFromEnv() (Config, error) {
@@ -105,6 +112,10 @@ func loadFromLookup(lookup func(string) string) (Config, error) {
 		AllowPublicAdmin:              getenvBool(lookup, "ALLOW_PUBLIC_ADMIN", false),
 		AllowEmptyDestACL:             getenvBool(lookup, "ALLOW_EMPTY_DEST_ALLOWLIST", false),
 		AllowInsecurePublicProxy:      getenvBool(lookup, "ALLOW_INSECURE_PUBLIC_PROXY", false),
+		ClaudeOAuthEnabled:            getenvBool(lookup, "CLAUDE_OAUTH_ENABLED", false),
+		ClaudeOAuthRefreshToken:       strings.TrimSpace(lookup("CLAUDE_OAUTH_REFRESH_TOKEN")),
+		ClaudeOAuthClientID:           strings.TrimSpace(getenvDefault(lookup, "CLAUDE_OAUTH_CLIENT_ID", claudeoauth.DefaultClientID)),
+		ClaudeOAuthTokenURL:           strings.TrimSpace(getenvDefault(lookup, "CLAUDE_OAUTH_TOKEN_URL", claudeoauth.DefaultTokenURL)),
 	}
 
 	var err error
@@ -120,6 +131,7 @@ func loadFromLookup(lookup func(string) string) (Config, error) {
 
 	cfg.DestHosts = parseHostSet(lookup("DEST_HOST_ALLOWLIST"))
 	cfg.DestSuffixes = parseSuffixes(lookup("DEST_SUFFIX_ALLOWLIST"))
+	cfg.ClaudeOAuthScopes = splitCSV(lookup("CLAUDE_OAUTH_SCOPES"))
 
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
@@ -193,6 +205,9 @@ func (c Config) Validate() error {
 
 	if isPublicBindHost(c.ProxyListenAddr) && !c.ProxyTLSEnabled && !c.AllowInsecurePublicProxy {
 		problems = append(problems, "public proxy listener without TLS is refused; enable PROXY_TLS_ENABLED or set ALLOW_INSECURE_PUBLIC_PROXY=true only when access is restricted elsewhere")
+	}
+	if c.ClaudeOAuthEnabled && c.ClaudeOAuthRefreshToken == "" {
+		problems = append(problems, "CLAUDE_OAUTH_REFRESH_TOKEN is required when CLAUDE_OAUTH_ENABLED=true")
 	}
 
 	if len(problems) > 0 {

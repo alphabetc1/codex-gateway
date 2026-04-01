@@ -1,6 +1,8 @@
 package main
 
 import (
+	"codex-gateway/internal/claudeclient"
+	"codex-gateway/internal/claudeoauth"
 	"context"
 	"errors"
 	"fmt"
@@ -34,6 +36,12 @@ func run(args []string) int {
 				return 1
 			}
 			return 0
+		case "claude-client":
+			if err := claudeclient.Run(args[1:], os.Stdout, os.Stderr); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			return 0
 		case "version", "--version", "-version":
 			fmt.Fprintln(os.Stdout, version.Version)
 			return 0
@@ -42,6 +50,7 @@ func run(args []string) int {
 			fmt.Fprintln(os.Stdout, "  codex-gateway")
 			fmt.Fprintln(os.Stdout, "  codex-gateway deploy vps [-config deploy/vps.yaml] [--write-only]")
 			fmt.Fprintln(os.Stdout, "  codex-gateway deploy client [-config deploy/client.yaml] [--write-only]")
+			fmt.Fprintln(os.Stdout, "  codex-gateway claude-client [-config claude-client.yaml]")
 			return 0
 		}
 	}
@@ -60,6 +69,20 @@ func run(args []string) int {
 	}
 
 	metrics := proxy.NewMetrics()
+	var broker *claudeoauth.Broker
+	if cfg.ClaudeOAuthEnabled {
+		broker, err = claudeoauth.New(claudeoauth.Config{
+			Enabled:      cfg.ClaudeOAuthEnabled,
+			RefreshToken: cfg.ClaudeOAuthRefreshToken,
+			ClientID:     cfg.ClaudeOAuthClientID,
+			Scopes:       cfg.ClaudeOAuthScopes,
+			TokenURL:     cfg.ClaudeOAuthTokenURL,
+		})
+		if err != nil {
+			slog.Error("initialize claude oauth broker failed", "error", err.Error())
+			return 1
+		}
+	}
 
 	handler := proxy.NewHandler(proxy.Options{
 		AppLogger:                     loggers.App,
@@ -76,6 +99,7 @@ func run(args []string) int {
 		IdleTimeout:                   cfg.ServerIdleTimeout,
 		TunnelIdleTimeout:             cfg.TunnelIdleTimeout,
 	})
+	adminRuntime := admin.NewRuntime(runtimeConfig.AuthStore, broker)
 
 	proxyServer := &http.Server{
 		Addr:              cfg.ProxyListenAddress(),
@@ -87,7 +111,7 @@ func run(args []string) int {
 
 	adminServer := &http.Server{
 		Addr:              cfg.AdminListenAddress(),
-		Handler:           admin.NewHandler(admin.Options{MetricsEnabled: cfg.MetricsEnabled, Metrics: metrics, Version: version.Version}),
+		Handler:           admin.NewHandler(admin.Options{MetricsEnabled: cfg.MetricsEnabled, Metrics: metrics, Version: version.Version, Runtime: adminRuntime}),
 		ReadHeaderTimeout: cfg.ServerReadHeaderTimeout,
 		IdleTimeout:       cfg.ServerIdleTimeout,
 		MaxHeaderBytes:    cfg.MaxHeaderBytes,
@@ -103,6 +127,9 @@ func run(args []string) int {
 
 	go serveProxy(loggers.App, proxyServer, cfg, errCh)
 	go serveHTTP(loggers.App, "admin", adminServer, errCh)
+	if broker != nil {
+		go warmBroker(loggers.App, broker)
+	}
 
 	for {
 		select {
@@ -117,6 +144,7 @@ func run(args []string) int {
 			}
 
 			handler.UpdateRuntime(nextRuntime)
+			adminRuntime.UpdateAuthStore(nextRuntime.AuthStore)
 
 			if fields := changedReloadableFields(cfg, nextCfg); len(fields) > 0 {
 				loggers.App.Info("config reload applied",
@@ -158,6 +186,19 @@ shutdown:
 	}
 
 	return 0
+}
+
+func warmBroker(logger *slog.Logger, broker *claudeoauth.Broker) {
+	if broker == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := broker.Warmup(ctx); err != nil {
+		logger.Warn("claude oauth broker warmup failed", "error", err.Error())
+		return
+	}
+	logger.Info("claude oauth broker ready")
 }
 
 func serveProxy(logger *slog.Logger, server *http.Server, cfg config.Config, errCh chan<- error) {

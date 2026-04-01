@@ -89,7 +89,7 @@ func runClient(args []string, stdout io.Writer, stderr io.Writer) error {
 		for index, servicePath := range result.ServicePaths {
 			_, _ = fmt.Fprintf(stdout, "  tunnel service %d: %s\n", index+1, servicePath)
 		}
-	} else {
+	} else if result.ServicePath != "" {
 		_, _ = fmt.Fprintf(stdout, "  tunnel service: %s\n", result.ServicePath)
 	}
 	if len(result.EnvPaths) > 1 {
@@ -97,10 +97,30 @@ func runClient(args []string, stdout io.Writer, stderr io.Writer) error {
 		for index, envPath := range result.EnvPaths {
 			_, _ = fmt.Fprintf(stdout, "  endpoint env %d: %s\n", index+1, envPath)
 		}
-	} else {
+	} else if result.EnvPath != "" {
 		_, _ = fmt.Fprintf(stdout, "  env file: %s\n", result.EnvPath)
 	}
-	_, _ = fmt.Fprintf(stdout, "  wrapper: %s\n", result.WrapperPath)
+	if result.WrapperPath != "" {
+		_, _ = fmt.Fprintf(stdout, "  wrapper: %s\n", result.WrapperPath)
+	}
+	if result.ClaudeAdminServicePath != "" {
+		_, _ = fmt.Fprintf(stdout, "  claude admin tunnel: %s\n", result.ClaudeAdminServicePath)
+	}
+	if result.ClaudeServicePath != "" {
+		_, _ = fmt.Fprintf(stdout, "  claude service: %s\n", result.ClaudeServicePath)
+	}
+	if result.ClaudeConfigPath != "" {
+		_, _ = fmt.Fprintf(stdout, "  claude config: %s\n", result.ClaudeConfigPath)
+	}
+	if result.ClaudeEnvPath != "" {
+		_, _ = fmt.Fprintf(stdout, "  claude env: %s\n", result.ClaudeEnvPath)
+	}
+	if result.ClaudeWrapperPath != "" {
+		_, _ = fmt.Fprintf(stdout, "  claude wrapper: %s\n", result.ClaudeWrapperPath)
+	}
+	if result.ClaudeBinaryPath != "" {
+		_, _ = fmt.Fprintf(stdout, "  claude binary: %s\n", result.ClaudeBinaryPath)
+	}
 	return nil
 }
 
@@ -111,7 +131,7 @@ func printUsage(w io.Writer) {
 
 Targets:
   vps     Render runtime files, build the binary, and install the local VPS service
-  client  Render the SSH tunnel service and a proxy wrapper script on the client
+  client  Render the SSH tunnel service plus optional Claude rewrite client artifacts
 `)
 }
 

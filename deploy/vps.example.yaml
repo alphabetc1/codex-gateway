@@ -44,3 +44,18 @@ runtime:
   metrics_enabled: true
 
 env_overrides: {}
+
+# Optional: centralized Claude OAuth broker for `codex-gateway claude-client`.
+# When enabled, the VPS holds the refresh token and serves short-lived access tokens
+# via the admin listener.
+claude_oauth:
+  enabled: false
+  refresh_token: ""
+  # client_id: 9d1c250a-e61b-44d9-88ed-5944d1962f5e
+  # token_url: https://platform.claude.com/v1/oauth/token
+  # scopes:
+  #   - user:inference
+  #   - user:profile
+  #   - user:sessions:claude_code
+  #   - user:mcp_servers
+  #   - user:file_upload
