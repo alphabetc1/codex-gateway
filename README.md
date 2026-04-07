@@ -60,8 +60,12 @@ cp deploy/vps.example.yaml deploy/vps.yaml
 - `.openai.com`
 - `.openrouter.ai`
 - `.chatgpt.com`
+- `.github.com`
+- `.githubusercontent.com`
+- `.githubcopilot.com`
+- `.ghcr.io`
 
-默认示例还会通过 `runtime.dest_host_allowlist` 放行精确主机 `storage.googleapis.com`，用于兼容 Claude Code 仍在迁移中的 legacy 下载路径。
+默认示例还会通过 `runtime.dest_host_allowlist` 放行精确主机 `storage.googleapis.com`，用于兼容 Claude Code 仍在迁移中的 legacy 下载路径；同时默认放行 Github 常见 API / 下载域族、远程 GitHub MCP 的 `.githubcopilot.com`，以及本地 Docker 方式安装 GitHub MCP 时会用到的 `.ghcr.io`，避免用户还要手动补白名单。
 
 不建议直接把白名单放空或改成近似全放开。更稳的做法是按产品域族放行，比如 Claude 用 `.anthropic.com`、`.claude.com`、`.claude.ai`，再补必要的精确 host。
 
