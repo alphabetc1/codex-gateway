@@ -30,6 +30,10 @@ runtime:
     - .openai.com
     - .openrouter.ai
     - .chatgpt.com
+    - .github.com
+    - .githubusercontent.com
+    - .githubcopilot.com
+    - .ghcr.io
   max_conns_per_ip: 128
   server_read_header_timeout: 10s
   server_idle_timeout: 90s

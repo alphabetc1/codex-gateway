@@ -87,6 +87,34 @@ func TestRenderVPSUsersHashesPlaintextPasswords(t *testing.T) {
 	}
 }
 
+func TestNormalizeVPSConfigAppliesDefaultGitHubAllowlist(t *testing.T) {
+	spec := VPSConfig{
+		Users: []ProxyUser{
+			{Username: "alice", Password: "change-me"},
+		},
+	}
+
+	normalized, err := normalizeVPSConfig(spec)
+	if err != nil {
+		t.Fatalf("normalizeVPSConfig() error = %v", err)
+	}
+	if !contains(normalized.Runtime.DestHostAllowlist, "storage.googleapis.com") {
+		t.Fatalf("default host allowlist = %#v, want storage.googleapis.com", normalized.Runtime.DestHostAllowlist)
+	}
+	if !contains(normalized.Runtime.DestSuffixAllowlist, ".github.com") {
+		t.Fatalf("default suffix allowlist = %#v, want .github.com", normalized.Runtime.DestSuffixAllowlist)
+	}
+	if !contains(normalized.Runtime.DestSuffixAllowlist, ".githubusercontent.com") {
+		t.Fatalf("default suffix allowlist = %#v, want .githubusercontent.com", normalized.Runtime.DestSuffixAllowlist)
+	}
+	if !contains(normalized.Runtime.DestSuffixAllowlist, ".githubcopilot.com") {
+		t.Fatalf("default suffix allowlist = %#v, want .githubcopilot.com", normalized.Runtime.DestSuffixAllowlist)
+	}
+	if !contains(normalized.Runtime.DestSuffixAllowlist, ".ghcr.io") {
+		t.Fatalf("default suffix allowlist = %#v, want .ghcr.io", normalized.Runtime.DestSuffixAllowlist)
+	}
+}
+
 func TestRenderClientArtifacts(t *testing.T) {
 	spec := ClientConfig{
 		InstallDir:  "/home/test/.config/codex-gateway",

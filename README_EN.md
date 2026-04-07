@@ -61,8 +61,12 @@ The sample already includes common model service domains:
 - `.openai.com`
 - `.openrouter.ai`
 - `.chatgpt.com`
+- `.github.com`
+- `.githubusercontent.com`
+- `.githubcopilot.com`
+- `.ghcr.io`
 
-The default sample also allowlists the exact host `storage.googleapis.com` through `runtime.dest_host_allowlist` to cover Claude Code's legacy download path while that migration is still in progress.
+The default sample also allowlists the exact host `storage.googleapis.com` through `runtime.dest_host_allowlist` to cover Claude Code's legacy download path while that migration is still in progress. It also includes the common GitHub API and download domain families, `.githubcopilot.com` for the remote GitHub MCP server, and `.ghcr.io` for the local Docker-based GitHub MCP install path so those flows do not require manual allowlist edits.
 
 Avoid removing the allowlist entirely or approximating a wildcard. A better default is to allow vendor product domain families such as `.anthropic.com`, `.claude.com`, and `.claude.ai`, then add a small number of exact hosts only when needed.
 

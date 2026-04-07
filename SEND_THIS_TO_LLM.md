@@ -45,6 +45,10 @@
   - `.openai.com`
   - `.openrouter.ai`
   - `.chatgpt.com`
+  - `.github.com`
+  - `.githubusercontent.com`
+  - `.githubcopilot.com`
+  - `.ghcr.io`
 - 默认精确 host 放行：
   - `storage.googleapis.com`
 - 客户端通过 SSH 隧道访问服务端

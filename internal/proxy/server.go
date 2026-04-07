@@ -40,6 +40,8 @@ var metricDurationBuckets = []time.Duration{
 	30 * time.Second,
 }
 
+const defaultResolvedDialFallbackDelay = 250 * time.Millisecond
+
 type Metrics struct {
 	startedAt time.Time
 
@@ -215,6 +217,7 @@ type Options struct {
 	Metrics   *Metrics
 
 	UpstreamDialTimeout           time.Duration
+	UpstreamDialFallbackDelay     time.Duration
 	UpstreamTLSHandshakeTimeout   time.Duration
 	UpstreamResponseHeaderTimeout time.Duration
 	IdleTimeout                   time.Duration
@@ -230,12 +233,19 @@ type Handler struct {
 	limiter *limiter.ConcurrencyLimiter
 	metrics *Metrics
 
-	dialer            net.Dialer
-	transport         *http.Transport
-	tunnelIdleTimeout time.Duration
+	dialer                    net.Dialer
+	baseDialContext           func(context.Context, string, string) (net.Conn, error)
+	transport                 *http.Transport
+	tunnelIdleTimeout         time.Duration
+	resolvedDialFallbackDelay time.Duration
 }
 
 func NewHandler(options Options) *Handler {
+	fallbackDelay := options.UpstreamDialFallbackDelay
+	if fallbackDelay <= 0 {
+		fallbackDelay = defaultResolvedDialFallbackDelay
+	}
+
 	handler := &Handler{
 		appLogger:        options.AppLogger,
 		auditLogger:      options.AuditLogger,
@@ -246,8 +256,10 @@ func NewHandler(options Options) *Handler {
 			Timeout:   options.UpstreamDialTimeout,
 			KeepAlive: 30 * time.Second,
 		},
-		tunnelIdleTimeout: options.TunnelIdleTimeout,
+		tunnelIdleTimeout:         options.TunnelIdleTimeout,
+		resolvedDialFallbackDelay: fallbackDelay,
 	}
+	handler.baseDialContext = handler.dialer.DialContext
 
 	handler.transport = &http.Transport{
 		Proxy:                 nil,
@@ -403,7 +415,7 @@ func (h *Handler) dialContext(ctx context.Context, network, address string) (net
 		recordDialTrace(ctx, trace)
 		return conn, nil
 	}
-	return h.dialer.DialContext(ctx, network, address)
+	return h.baseDialContext(ctx, network, address)
 }
 
 func (h *Handler) dialResolvedTargets(ctx context.Context, network string, addresses []string) (net.Conn, dialTrace, error) {
@@ -411,14 +423,81 @@ func (h *Handler) dialResolvedTargets(ctx context.Context, network string, addre
 		return nil, dialTrace{}, errors.New("no dial targets")
 	}
 
+	// We pre-resolve addresses for policy enforcement, so we need our own
+	// fallback race to avoid stalling on a slow first IP (for example, broken IPv6).
+	attemptCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type dialResult struct {
+		address string
+		conn    net.Conn
+		err     error
+	}
+
+	results := make(chan dialResult, len(addresses))
+	launched := 0
+	completed := 0
+	nextToLaunch := 0
+
+	startAttempt := func(address string) {
+		launched++
+		go func() {
+			conn, err := h.baseDialContext(attemptCtx, network, address)
+			if err == nil {
+				select {
+				case results <- dialResult{address: address, conn: conn}:
+				case <-attemptCtx.Done():
+					_ = conn.Close()
+				}
+				return
+			}
+			select {
+			case results <- dialResult{address: address, err: err}:
+			case <-attemptCtx.Done():
+			}
+		}()
+	}
+
+	startAttempt(addresses[nextToLaunch])
+	nextToLaunch++
+
+	var fallback <-chan time.Time
+	if nextToLaunch < len(addresses) {
+		fallback = time.After(h.resolvedDialFallbackDelay)
+	}
+
 	var lastErr error
-	for index, address := range addresses {
-		conn, err := h.dialer.DialContext(ctx, network, address)
-		if err == nil {
-			return conn, dialTrace{selectedAddress: address, attempts: index + 1}, nil
-		}
-		lastErr = err
-		if ctx.Err() != nil {
+
+	for completed < launched || nextToLaunch < len(addresses) {
+		select {
+		case result := <-results:
+			completed++
+			if result.err == nil {
+				cancel()
+				return result.conn, dialTrace{selectedAddress: result.address, attempts: launched}, nil
+			}
+			lastErr = result.err
+			if ctx.Err() != nil {
+				return nil, dialTrace{}, ctx.Err()
+			}
+			if completed == launched && nextToLaunch < len(addresses) {
+				startAttempt(addresses[nextToLaunch])
+				nextToLaunch++
+				if nextToLaunch < len(addresses) {
+					fallback = time.After(h.resolvedDialFallbackDelay)
+				} else {
+					fallback = nil
+				}
+			}
+		case <-fallback:
+			startAttempt(addresses[nextToLaunch])
+			nextToLaunch++
+			if nextToLaunch < len(addresses) {
+				fallback = time.After(h.resolvedDialFallbackDelay)
+			} else {
+				fallback = nil
+			}
+		case <-ctx.Done():
 			return nil, dialTrace{}, ctx.Err()
 		}
 	}
