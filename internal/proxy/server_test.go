@@ -3,6 +3,7 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -151,6 +152,97 @@ func TestHTTPForwardFallsBackToNextResolvedAddress(t *testing.T) {
 	}
 	if !strings.Contains(auditLogs.String(), "\"resolved_ip\":\""+addr.String()+"\"") {
 		t.Fatalf("audit log missing fallback resolved ip %q: %s", addr.String(), auditLogs.String())
+	}
+}
+
+func TestHTTPForwardDoesNotBlockOnSlowFirstResolvedAddress(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("race-ok"))
+	}))
+	defer upstream.Close()
+
+	_, port := listenerAddrPort(t, upstream.Listener.Addr())
+
+	appLogs := &bytes.Buffer{}
+	auditLogs := &bytes.Buffer{}
+	loggers, err := logging.NewWithWriters("debug", "json", appLogs, auditLogs)
+	if err != nil {
+		t.Fatalf("NewWithWriters() error = %v", err)
+	}
+
+	hash, err := auth.HashPassword(testPassword, bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("HashPassword() error = %v", err)
+	}
+
+	handler := NewHandler(Options{
+		AppLogger:                 loggers.App,
+		AuditLogger:               loggers.Audit,
+		AccessLogEnabled:          true,
+		AuthStore:                 auth.NewMapStore(map[string]string{testUsername: hash}),
+		Limiter:                   limiter.New(4),
+		UpstreamDialFallbackDelay: 25 * time.Millisecond,
+		Policy: Policy{
+			AllowedPorts: map[uint16]struct{}{port: {}},
+			HostMatcher:  netutil.NewHostMatcher(map[string]struct{}{testHostName: {}}, nil),
+			Resolver: staticResolver{
+				testHostName: {
+					netip.MustParseAddr("127.0.0.2"),
+					netip.MustParseAddr("127.0.0.3"),
+				},
+			},
+			AllowPrivate: true,
+		},
+		SourceIPs:                     netutil.NewPrefixMatcher(nil),
+		Metrics:                       NewMetrics(),
+		UpstreamDialTimeout:           500 * time.Millisecond,
+		UpstreamTLSHandshakeTimeout:   500 * time.Millisecond,
+		UpstreamResponseHeaderTimeout: 500 * time.Millisecond,
+		IdleTimeout:                   500 * time.Millisecond,
+		TunnelIdleTimeout:             500 * time.Millisecond,
+	})
+
+	actualDialer := net.Dialer{Timeout: time.Second}
+	upstreamAddr := upstream.Listener.Addr().String()
+	handler.baseDialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, err
+		}
+		switch host {
+		case "127.0.0.2":
+			select {
+			case <-time.After(300 * time.Millisecond):
+				return nil, context.DeadlineExceeded
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		case "127.0.0.3":
+			return actualDialer.DialContext(ctx, network, upstreamAddr)
+		default:
+			return actualDialer.DialContext(ctx, network, address)
+		}
+	}
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	startedAt := time.Now()
+	response := doRawHTTP(t, proxyAddress(server), rawForwardRequest(port))
+	elapsed := time.Since(startedAt)
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	if body := strings.TrimSpace(response.Body); body != "race-ok" {
+		t.Fatalf("body = %q, want %q", body, "race-ok")
+	}
+	if elapsed >= 250*time.Millisecond {
+		t.Fatalf("request took %v, want fallback before slow dial finishes", elapsed)
+	}
+	if !strings.Contains(auditLogs.String(), "\"resolved_ip\":\"127.0.0.3\"") {
+		t.Fatalf("audit log missing fast fallback address: %s", auditLogs.String())
 	}
 }
 
